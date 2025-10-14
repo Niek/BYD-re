@@ -25,9 +25,11 @@ All calls target the same host, `https://dilinkappoversea-eu.byd.auto`, and were
 
 ## Client-Side Encryption Clues
 - The APK is SecNeo/Bangcle-protected; the visible `classes.dex` is a bootstrap that loads encrypted code from `libdatajar.so`.
-- Native library `libwbsk_crypto_tool.so` exports JNI methods such as `Java_com_wbsk_CryptoTool_laesEncryptStringWithBase64`, `laesEncryptByteArr`, and `commonEncryptByteArr`, which call into helpers named `wbsk_LAES_ecb_encrypt/decrypt`.
-- `libencrypt.so` and `libwbsk_crypto_tool.so` both reference `CSecFunctProvider::AES128_EncryptCBC`, `AES_EncryptOneBlock`, and white-box tables (`WBACRAES_*`), confirming the app uses a white-box **AES-128** implementation (ECB/CBC helpers present) prior to Base64 encoding.
-- The real Java side (`com/wboxalg/CryptoTool`) lives inside the encrypted Dex blob in `libdatajar.so`; hooking or dumping that Dex at runtime should reveal how plaintext JSON is transformed prior to transmission.
+- `dex2jar` confirms that `com/wbsk/CryptoTool` has no implementation in `class.dex`. Only the method table is present: both `laesEncryptStringWithBase64` and `laesDecryptStringWithBase64` have signature `(Ljava/lang/String;Ljava/lang/String;[B)Ljava/lang/String;`, but the third byte-array argument is always passed as `null` from the smali stubs.
+- Native library `libwbsk_crypto_tool.so` exposes the JNI entry points (`Java_com_wbsk_CryptoTool_laesEncryptStringWithBase64`, `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64`, etc.). These functions consume the white-box tables exposed by `jniutil/JniUtil` and execute the actual AES rounds.
+- `libencrypt.so` and `libwbsk_crypto_tool.so` reference `CSecFunctProvider::AES128_EncryptCBC`, `AES_EncryptOneBlock`, and white-box tables (`WBACRAES_*`), confirming the app uses a white-box **AES-128** implementation (ECB/CBC helpers present) prior to Base64 encoding.
+- The `JniUtil` native stub returns literal hex blobs for `getPriKey()`, `getPubKey()`, and “new” key variants. These strings are 512 hex chars (256 bytes) and should be passed untouched to the JNI layer; they are not raw AES keys but white-box key tables. Additional helpers (`getUrlEncrypt()`, `getSecondHandCarKey()`, etc.) expose other static secrets used by ancillary modules.
+- Because the white-box logic lives in native code, reimplementing the transport encryption requires calling into `libwbsk_crypto_tool.so` (e.g., loading the `.so` and invoking `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64`) or instrumenting the running app to capture plaintext at the JNI boundary—simple key derivation from the dumped hex strings is insufficient.
 
 ## Replay Check
 - Replaying `/app/config/getAllBrandCommonConfig` with a captured `JSESSIONID` and the original `request` blob succeeds; the server returns a structured `{"response": "...<ciphertext>..."}` payload rather than rejecting the session.
@@ -44,10 +46,10 @@ All calls target the same host, `https://dilinkappoversea-eu.byd.auto`, and were
 - The replayed response remains encrypted/encoded, so deeper decoding still hinges on uncovering the client-side codec.
 
 ## Potential Next Steps
-1. **Instrument the mobile app** (e.g., Frida, JADX inspection) to locate the serializer that builds the `request` payload and recover encryption keys or algorithms.
-2. **Intercept traffic before encryption** by hooking OkHttp interceptors or native libraries to capture plaintext JSON.
-3. **Collect wider coverage** of endpoints (vehicle commands, firmware updates, user profile) to understand the full API surface.
-4. **Expand replay testing** with other endpoints and fresh sessions to confirm how long `JSESSIONID` remains valid and whether additional headers/tokens ever appear.
-5. **Attempt payload decoding** once the encoding scheme is understood; confirm whether the data is simple Base64 with custom padding or an entirely different codec.
+1. **Call the native white-box directly** by loading `libwbsk_crypto_tool.so` (either via Frida or a small JNI harness) and invoking `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64` / `laesEncryptStringWithBase64` with the hex tables from `JniUtil`. This should yield exact plaintext/ciphertext pairs for the outer transport envelope.
+2. **Hook the JNI boundary** in a running app (Frida/Xposed) to log the strings passed into `CryptoTool` and capture plaintext JSON before it is wrapped.
+3. **Reverse the inner payload** by feeding decrypted envelopes into the existing AES-128-CBC routine (MD5(identifier) key) to fully unwrap `encryData` and inspect business objects.
+4. **Collect wider coverage** of endpoints (vehicle commands, firmware updates, user profile) to understand the full API surface once decryption is in place.
+5. **Expand replay testing** with other endpoints and fresh sessions to confirm how long `JSESSIONID` remains valid and whether additional headers/tokens ever appear.
 
 These notes should serve as a starting point for deeper protocol analysis and automation tooling.
