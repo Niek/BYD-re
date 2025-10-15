@@ -11,6 +11,8 @@ All calls target the same host, `https://dilinkappoversea-eu.byd.auto`, and were
 - `/control/getStatusNow` — likely queries current control/lock/etc state.
 - `/app/banner/getCountryBannerConfig` — retrieves localized marketing banner in the app.
 
+See more endpoints here: https://github.com/jkaberg/byd-react-app-reverse/issues/1
+
 ## HTTP Request / Response Details
 - All captures are `POST` requests using HTTP/2 with `content-type: application/json; charset=UTF-8`. The endpoint does not seem to support HTTP/1.1.
 - The client explicitly forces `accept-encoding: identity`, so responses are uncompressed despite the HTTP/2 transport.
@@ -29,7 +31,7 @@ All calls target the same host, `https://dilinkappoversea-eu.byd.auto`, and were
 - Native library `libwbsk_crypto_tool.so` exposes the JNI entry points (`Java_com_wbsk_CryptoTool_laesEncryptStringWithBase64`, `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64`, etc.). These functions consume the white-box tables exposed by `jniutil/JniUtil` and execute the actual AES rounds.
 - `libencrypt.so` and `libwbsk_crypto_tool.so` reference `CSecFunctProvider::AES128_EncryptCBC`, `AES_EncryptOneBlock`, and white-box tables (`WBACRAES_*`), confirming the app uses a white-box **AES-128** implementation (ECB/CBC helpers present) prior to Base64 encoding.
 - The `JniUtil` native stub returns literal hex blobs for `getPriKey()`, `getPubKey()`, and “new” key variants. These strings are 512 hex chars (256 bytes) and should be passed untouched to the JNI layer; they are not raw AES keys but white-box key tables. Additional helpers (`getUrlEncrypt()`, `getSecondHandCarKey()`, etc.) expose other static secrets used by ancillary modules.
-- Because the white-box logic lives in native code, reimplementing the transport encryption requires calling into `libwbsk_crypto_tool.so` (e.g., loading the `.so` and invoking `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64`) or instrumenting the running app to capture plaintext at the JNI boundary—simple key derivation from the dumped hex strings is insufficient.
+- Because the white-box logic lives in native code, reimplementing the transport encryption requires calling into `libwbsk_crypto_tool.so` (e.g., loading the `.so` and invoking `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64`) or instrumenting the running app to capture plaintext at the JNI boundary—simple key derivation from the dumped hex strings is insufficient. Hooking `com.wbsk.CryptoTool` at runtime confirms that the white-box tables work as expected when paired with the corresponding `getPriKey()` / `getPubKey()` material.
 
 ## Replay Check
 - Replaying `/app/config/getAllBrandCommonConfig` with a captured `JSESSIONID` and the original `request` blob succeeds; the server returns a structured `{"response": "...<ciphertext>..."}` payload rather than rejecting the session.
@@ -45,11 +47,52 @@ All calls target the same host, `https://dilinkappoversea-eu.byd.auto`, and were
   ```
 - The replayed response remains encrypted/encoded, so deeper decoding still hinges on uncovering the client-side codec.
 
-## Potential Next Steps
-1. **Call the native white-box directly** by loading `libwbsk_crypto_tool.so` (either via Frida or a small JNI harness) and invoking `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64` / `laesEncryptStringWithBase64` with the hex tables from `JniUtil`. This should yield exact plaintext/ciphertext pairs for the outer transport envelope.
-2. **Hook the JNI boundary** in a running app (Frida/Xposed) to log the strings passed into `CryptoTool` and capture plaintext JSON before it is wrapped.
-3. **Reverse the inner payload** by feeding decrypted envelopes into the existing AES-128-CBC routine (MD5(identifier) key) to fully unwrap `encryData` and inspect business objects.
-4. **Collect wider coverage** of endpoints (vehicle commands, firmware updates, user profile) to understand the full API surface once decryption is in place.
-5. **Expand replay testing** with other endpoints and fresh sessions to confirm how long `JSESSIONID` remains valid and whether additional headers/tokens ever appear.
+## Xposed Module
+
+An LSPosed/Xposed module (`xposed/`) hooks the Java `com.wbsk.CryptoTool` wrappers to log plaintext, ciphertext, and the associated white-box hex material during live app usage.
+
+### Building the module
+
+```
+cd xposed
+# Ensure the Android SDK path is configured (either via ANDROID_HOME or local.properties)
+./gradlew assembleRelease
+```
+
+The built APK will be located under `xposed/build/outputs/apk/release/`.
+
+### Deploying to a test device
+
+```
+adb install -r xposed/build/outputs/apk/release/xposed-release.apk
+```
+
+After installation, enable the module inside LSPosed Manager and scope it to the `com.byd.bydautolink` app. Reboot if LSPosed requests it.
+
+### Gathering logs
+
+```
+adb logcat -s BYD-Xposed
+```
+
+Log lines include the plaintext/ciphertext pairs and the 512-character key blobs needed for the white-box analysis.
+
+## JRuby/JNI Experiment: Not Viable
+We experimented with loading `libwbsk_crypto_tool.so` from a regular Linux environment (via Go + cgo) to call the JNI exports directly. This path dead-ends:
+
+- The shared object pulls in Android-specific dependencies (`liblog.so`, `libart.so`, etc.). Without bundling the entire Android runtime or providing symbol-compatible stubs, `dlopen` fails.
+- Even if those dependencies were satisfied, the exports expect a real `JNIEnv*` and associated Dalvik data structures; providing them outside Android requires reimplementing large parts of the VM.
+
+Conclusion: invoking the library natively is only practical inside an actual Android environment (or with Frida/Xposed instrumentation).
+
+## Current Reverse-Engineering Strategy
+Given the JNI approach is impractical on desktop Linux/macOS, we focus on reimplementing the transport encryption by studying the decompiled native code (`libwbsk_crypto_tool.so.c`, included in this repo).
+
+### High-Level Flow
+1. **Xposed hook** (`xposed/` module) logs the plaintext, ciphertext, and the 512-character white-box hex blobs (`JniUtil.getPriKey()` / `getPubKey()`). Representative captures are kept private because they contain sensitive user data.
+2. **Blob decode** (`FUN_00101888`): strip the 4-byte header, XOR-unmask the blob, determine mode/direction flags.
+3. **Table expansion** (`wbsk_skb_decrypt` → `wbsk_internal_crypto`): chunk the decoded blob into lookup tables (`LAES_encrypt_te*`, `LAES_encrypt_xor*`, etc.) that encode both the AES round keys and the affine encodings of the white-box.
+4. **White-box AES rounds** (`wbsk_WB_LAES_encrypt` / `wbsk_WB_LAES_decrypt`): process each 16-byte block through 10+ rounds of nibble-mixing with the tables above.
+5. **CBC + PKCS#7** (`wbsk_CRYPTO_cbc128_*` + JNI wrapper): wrap the block cipher in standard AES-128-CBC with zero IV (when `null`), apply padding, Base64 encode the result.
 
 These notes should serve as a starting point for deeper protocol analysis and automation tooling.
