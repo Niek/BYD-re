@@ -58,6 +58,54 @@ struct Elf64_Rela {
     qword r_addend; // a constant addend used to compute the relocatable field value
 };
 
+typedef struct Elf64_Shdr Elf64_Shdr, *PElf64_Shdr;
+
+typedef enum Elf_SectionHeaderType_AARCH64 {
+    SHT_NULL=0,
+    SHT_PROGBITS=1,
+    SHT_SYMTAB=2,
+    SHT_STRTAB=3,
+    SHT_RELA=4,
+    SHT_HASH=5,
+    SHT_DYNAMIC=6,
+    SHT_NOTE=7,
+    SHT_NOBITS=8,
+    SHT_REL=9,
+    SHT_SHLIB=10,
+    SHT_DYNSYM=11,
+    SHT_INIT_ARRAY=14,
+    SHT_FINI_ARRAY=15,
+    SHT_PREINIT_ARRAY=16,
+    SHT_GROUP=17,
+    SHT_SYMTAB_SHNDX=18,
+    SHT_ANDROID_REL=1610612737,
+    SHT_ANDROID_RELA=1610612738,
+    SHT_GNU_ATTRIBUTES=1879048181,
+    SHT_GNU_HASH=1879048182,
+    SHT_GNU_LIBLIST=1879048183,
+    SHT_CHECKSUM=1879048184,
+    SHT_SUNW_move=1879048186,
+    SHT_SUNW_COMDAT=1879048187,
+    SHT_SUNW_syminfo=1879048188,
+    SHT_GNU_verdef=1879048189,
+    SHT_GNU_verneed=1879048190,
+    SHT_GNU_versym=1879048191,
+    SHT_AARCH64_ATTRIBUTES=1879048195
+} Elf_SectionHeaderType_AARCH64;
+
+struct Elf64_Shdr {
+    dword sh_name;
+    enum Elf_SectionHeaderType_AARCH64 sh_type;
+    qword sh_flags;
+    qword sh_addr;
+    qword sh_offset;
+    qword sh_size;
+    dword sh_link;
+    dword sh_info;
+    qword sh_addralign;
+    qword sh_entsize;
+};
+
 typedef struct Elf64_Dyn_AARCH64 Elf64_Dyn_AARCH64, *PElf64_Dyn_AARCH64;
 
 typedef enum Elf64_DynTag_AARCH64 {
@@ -144,54 +192,6 @@ struct Elf64_Dyn_AARCH64 {
     qword d_val;
 };
 
-typedef struct Elf64_Shdr Elf64_Shdr, *PElf64_Shdr;
-
-typedef enum Elf_SectionHeaderType_AARCH64 {
-    SHT_NULL=0,
-    SHT_PROGBITS=1,
-    SHT_SYMTAB=2,
-    SHT_STRTAB=3,
-    SHT_RELA=4,
-    SHT_HASH=5,
-    SHT_DYNAMIC=6,
-    SHT_NOTE=7,
-    SHT_NOBITS=8,
-    SHT_REL=9,
-    SHT_SHLIB=10,
-    SHT_DYNSYM=11,
-    SHT_INIT_ARRAY=14,
-    SHT_FINI_ARRAY=15,
-    SHT_PREINIT_ARRAY=16,
-    SHT_GROUP=17,
-    SHT_SYMTAB_SHNDX=18,
-    SHT_ANDROID_REL=1610612737,
-    SHT_ANDROID_RELA=1610612738,
-    SHT_GNU_ATTRIBUTES=1879048181,
-    SHT_GNU_HASH=1879048182,
-    SHT_GNU_LIBLIST=1879048183,
-    SHT_CHECKSUM=1879048184,
-    SHT_SUNW_move=1879048186,
-    SHT_SUNW_COMDAT=1879048187,
-    SHT_SUNW_syminfo=1879048188,
-    SHT_GNU_verdef=1879048189,
-    SHT_GNU_verneed=1879048190,
-    SHT_GNU_versym=1879048191,
-    SHT_AARCH64_ATTRIBUTES=1879048195
-} Elf_SectionHeaderType_AARCH64;
-
-struct Elf64_Shdr {
-    dword sh_name;
-    enum Elf_SectionHeaderType_AARCH64 sh_type;
-    qword sh_flags;
-    qword sh_addr;
-    qword sh_offset;
-    qword sh_size;
-    dword sh_link;
-    dword sh_info;
-    qword sh_addralign;
-    qword sh_entsize;
-};
-
 typedef struct Elf64_Sym Elf64_Sym, *PElf64_Sym;
 
 struct Elf64_Sym {
@@ -266,34 +266,32 @@ typedef struct evp_pkey_ctx_st EVP_PKEY_CTX;
 
 
 
-undefined DAT_0011b000;
+undefined1 __dso_handle;
 undefined __stack_chk_guard;
-string s_com.byd.bydautolink_0011b008;
-undefined4 DAT_0011b024;
-undefined4 __bss_start__;
-int DAT_0011b024;
+undefined4 g_pack_name_ver_res;
+string g_package_name;
+undefined4 g_md5_ver_res;
 undefined wbsk_WB_LAES_decrypt;
 undefined wbsk_WB_LAES_encrypt;
-undefined1[256] LAES_encrypt_xor1;
-undefined1[256] LAES_encrypt_te4;
-undefined1[1024] LAES_encrypt_te3;
-undefined1[1024] LAES_encrypt_te2;
-undefined1[1024] LAES_encrypt_te0;
-undefined1[256] LAES_encrypt_xor;
-undefined1[1024] LAES_encrypt_te1;
-undefined1[256] LAES_encrypt_xor0;
-undefined LAES_decrypt_td4;
-undefined1[256] LAES_decrypt_xor1;
-undefined1[1024] LAES_decrypt_td0;
-undefined1[256] LAES_decrypt_xor;
-undefined1[1024] LAES_decrypt_td1;
-undefined1[1024] LAES_decrypt_td3;
-undefined1[256] LAES_decrypt_xor0;
-undefined1[1024] LAES_decrypt_td2;
+undefined1 LAES_encrypt_xor1;
+undefined1 LAES_encrypt_te4;
+undefined1 LAES_encrypt_te3;
+undefined1 LAES_encrypt_te2;
+undefined1 LAES_encrypt_te0;
+undefined1 LAES_encrypt_xor;
+undefined1 LAES_encrypt_te1;
+undefined1 LAES_encrypt_xor0;
+undefined1 LAES_decrypt_td4;
+undefined1 LAES_decrypt_xor1;
+undefined1 LAES_decrypt_td0;
+undefined1 LAES_decrypt_xor;
+undefined1 LAES_decrypt_td1;
+undefined1 LAES_decrypt_td3;
+undefined1 LAES_decrypt_xor0;
+undefined1 LAES_decrypt_td2;
 undefined DAT_0010a168;
 undefined DAT_0010a0f8;
-int DAT_0011b028;
-undefined4 DAT_0011b028;
+undefined4 alg;
 
 void FUN_00101340(void)
 
@@ -496,10 +494,10 @@ void free(void *__ptr)
 
 
 
-void entry(void)
+void __on_dlclose(void)
 
 {
-  __cxa_finalize(&DAT_0011b000);
+  __cxa_finalize(&__dso_handle);
   return;
 }
 
@@ -651,7 +649,7 @@ void wbsk_skb_decrypt(undefined8 param_1,undefined4 param_2,undefined8 param_3,u
 
 // WARNING: Globals starting with '_' overlap smaller symbols at the same address
 
-void FUN_001017f8(void)
+void get_random_int(void)
 
 {
   uint uVar1;
@@ -672,12 +670,12 @@ void FUN_001017f8(void)
 
 
 
-undefined8 FUN_00101888(byte *param_1,int param_2,long *param_3)
+undefined8 init_key(byte *param_1,int param_2,long *param_3)
 
 {
   void *pvVar1;
   undefined8 uVar2;
-  int iStack_4;
+  int local_4;
   
   pvVar1 = malloc((long)param_2 - 4);
   *param_3 = (long)pvVar1;
@@ -833,8 +831,8 @@ undefined8 FUN_00101888(byte *param_1,int param_2,long *param_3)
     default:
       return 0xffffffff;
     }
-    for (iStack_4 = 4; iStack_4 < param_2; iStack_4 = iStack_4 + 1) {
-      *(byte *)(*param_3 + (long)iStack_4 + -4) = param_1[iStack_4] ^ param_1[iStack_4 % 3];
+    for (local_4 = 4; local_4 < param_2; local_4 = local_4 + 1) {
+      *(byte *)(*param_3 + (long)local_4 + -4) = param_1[local_4] ^ param_1[local_4 % 3];
     }
     *(int *)(param_3 + 1) = param_2 + -4;
     uVar2 = 0;
@@ -844,7 +842,7 @@ undefined8 FUN_00101888(byte *param_1,int param_2,long *param_3)
 
 
 
-void FUN_00101e4c(long *param_1)
+void free_key(long *param_1)
 
 {
   if (*param_1 != 0) {
@@ -859,7 +857,7 @@ void FUN_00101e4c(long *param_1)
 // WARNING: Switch with 1 destination removed at 0x00101f24 : 8 cases all go to same destination
 // WARNING: Switch with 1 destination removed at 0x00101fe8 : 8 cases all go to same destination
 
-undefined8 FUN_00101e84(long param_1,int param_2,int param_3,int param_4)
+undefined8 add_padding(long param_1,int param_2,int param_3,int param_4)
 
 {
   int iVar1;
@@ -880,7 +878,7 @@ undefined8 FUN_00101e84(long param_1,int param_2,int param_3,int param_4)
   }
   else if (param_4 == 2) {
     for (local_4 = 0; local_4 < local_8 + -1; local_4 = local_4 + 1) {
-      uVar2 = FUN_001017f8();
+      uVar2 = get_random_int();
       *(undefined1 *)(param_1 + (param_2 + local_4)) = uVar2;
     }
     *(char *)(param_1 + (long)(param_2 + local_8) + -1) = (char)local_8;
@@ -890,7 +888,7 @@ undefined8 FUN_00101e84(long param_1,int param_2,int param_3,int param_4)
 
 
 
-undefined4 FUN_00102000(int *param_1,long param_2)
+undefined4 check_crypto_info(int *param_1,long param_2)
 
 {
   undefined4 local_4;
@@ -921,16 +919,16 @@ void check_package_name(undefined8 param_1)
   char *__s2;
   char *local_10;
   
-  if (s_com_byd_bydautolink_0011b008[0] == '\0') {
-    DAT_0011b024 = 1;
+  if (g_package_name[0] == '\0') {
+    g_pack_name_ver_res = 1;
   }
   else {
     __s2 = (char *)get_pkgname(param_1);
-    local_10 = strtok(s_com_byd_bydautolink_0011b008,";");
+    local_10 = strtok(g_package_name,";");
     while (local_10 != (char *)0x0) {
       iVar1 = strcmp(local_10,__s2);
       if (iVar1 == 0) {
-        DAT_0011b024 = 1;
+        g_pack_name_ver_res = 1;
         break;
       }
       local_10 = strtok((char *)0x0,";");
@@ -947,13 +945,14 @@ void check_package_name(undefined8 param_1)
 void check_md5(void)
 
 {
-  __bss_start__ = 1;
+  g_md5_ver_res = 1;
   return;
 }
 
 
 
-undefined8 FUN_001021a8(long param_1,long param_2,long param_3,int param_4,int param_5,long param_6)
+undefined8
+parameter_check(long param_1,long param_2,long param_3,int param_4,int param_5,long param_6)
 
 {
   undefined8 uVar1;
@@ -1003,16 +1002,16 @@ void wbsk_internal_crypto
   local_28 = 0;
   local_38 = (void *)0x0;
   local_44 = 0;
-  if (__bss_start__ == 0) {
+  if (g_md5_ver_res == 0) {
     local_4c = 6;
     iVar2 = local_4c;
   }
-  else if (DAT_0011b024 == 0) {
+  else if (g_pack_name_ver_res == 0) {
     local_4c = 7;
     iVar2 = local_4c;
   }
   else {
-    iVar2 = FUN_00101888(param_7,param_8,&local_28);
+    iVar2 = init_key(param_7,param_8,&local_28);
     if (iVar2 == -1) {
       local_4c = 5;
       iVar2 = local_4c;
@@ -1024,9 +1023,9 @@ void wbsk_internal_crypto
       else if (((local_1c == 1) || (local_1c == 2)) || ((local_1c == 5 || (local_1c == 6)))) {
         local_44 = 8;
       }
-      iVar2 = FUN_001021a8(param_1,param_3,param_5,param_6,local_44,param_7);
+      iVar2 = parameter_check(param_1,param_3,param_5,param_6,local_44,param_7);
       if (iVar2 < 1) {
-        iVar2 = FUN_00102000(param_9,&local_28);
+        iVar2 = check_crypto_info(param_9,&local_28);
         if (iVar2 == 0) {
           if (*(int *)(param_9 + 0x1c) == 0) {
             iVar2 = 0;
@@ -1066,8 +1065,8 @@ void wbsk_internal_crypto
             local_38 = calloc((long)local_48,1);
             memcpy(local_38,param_1,(long)param_2);
             if ((*(int *)(param_9 + 0x1c) != 0) && (local_10 == 0)) {
-              FUN_00101e84(local_38,param_2,local_44,*(undefined4 *)(param_9 + 0x1c),
-                           *(undefined4 *)(param_9 + 4));
+              add_padding(local_38,param_2,local_44,*(undefined4 *)(param_9 + 0x1c),
+                          *(undefined4 *)(param_9 + 4));
             }
             if ((local_1c == 4) && (local_10 == 0)) {
               if (*(int *)(param_9 + 0x18) == 0) {
@@ -1129,7 +1128,7 @@ LAB_00102754:
   if (local_38 != (void *)0x0) {
     free(local_38);
   }
-  FUN_00101e4c(&local_28);
+  free_key(&local_28);
   if (local_8 == ___stack_chk_guard) {
     return;
   }
@@ -1413,183 +1412,187 @@ void wbsk_WB_LAES_encrypt(long param_1,long param_2,long *param_3)
   }
   for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
     local_38[local_48] =
-         LAES_encrypt_xor0
+         (&LAES_encrypt_xor0)
          [(int)((uint)(*(byte *)(param_1 + local_48) >> 4) << 4 ^
                (uint)(*(byte *)(lVar4 + local_48) >> 4))] & 0xf0 ^
-         (byte)LAES_encrypt_xor0
+         (byte)(&LAES_encrypt_xor0)
                [(int)((*(byte *)(param_1 + local_48) & 0xf) << 4 ^ *(byte *)(lVar4 + local_48) & 0xf
                      )] >> 4;
   }
   for (local_4c = 1; local_4c < (iVar1 >> 5) + 6; local_4c = local_4c + 1) {
-    local_28[0] = (byte)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[0] * 4)
+    local_28[0] = (byte)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[0] * 4)
                         >> 0x18);
-    local_28[1] = (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[0] * 4)
+    local_28[1] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[0] * 4)
                         >> 0x10);
-    local_28[2] = (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[0] * 4)
+    local_28[2] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[0] * 4)
                         >> 8);
-    local_28[3] = (char)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[0] * 4);
-    local_28[4] = (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[4] * 4)
+    local_28[3] = (char)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[0] * 4);
+    local_28[4] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[4] * 4)
                         >> 0x18);
-    local_28[5] = (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[4] * 4)
+    local_28[5] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[4] * 4)
                         >> 0x10);
-    local_28[6] = (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[4] * 4)
+    local_28[6] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[4] * 4)
                         >> 8);
-    local_28[7] = (char)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[4] * 4);
-    local_28[8] = (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[8] * 4)
+    local_28[7] = (char)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[4] * 4);
+    local_28[8] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[8] * 4)
                         >> 0x18);
-    local_28[9] = (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[8] * 4)
+    local_28[9] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[8] * 4)
                         >> 0x10);
-    local_28[10] = (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[8] * 4)
-                         >> 8);
-    local_28[0xb] = (char)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[8] * 4);
+    local_28[10] = (char)((uint)*(undefined4 *)
+                                 (&LAES_encrypt_te0 + (long)(int)(uint)local_38[8] * 4) >> 8);
+    local_28[0xb] = (char)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[8] * 4);
     local_28[0xc] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[0xc] * 4) >> 0x18
-               );
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[0xc] * 4) >>
+               0x18);
     local_28[0xd] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[0xc] * 4) >> 0x10
-               );
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[0xc] * 4) >>
+               0x10);
     local_28[0xe] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[0xc] * 4) >> 8);
-    local_28[0xf] = (char)*(undefined4 *)(LAES_encrypt_te0 + (long)(int)(uint)local_38[0xc] * 4);
-    local_18[0] = (byte)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[5] * 4)
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[0xc] * 4) >> 8);
+    local_28[0xf] = (char)*(undefined4 *)(&LAES_encrypt_te0 + (long)(int)(uint)local_38[0xc] * 4);
+    local_18[0] = (byte)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[5] * 4)
                         >> 0x18);
-    local_18[1] = (char)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[5] * 4)
+    local_18[1] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[5] * 4)
                         >> 0x10);
-    local_18[2] = (char)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[5] * 4)
+    local_18[2] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[5] * 4)
                         >> 8);
-    local_18[3] = (char)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[5] * 4);
-    local_18[4] = (char)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[9] * 4)
+    local_18[3] = (char)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[5] * 4);
+    local_18[4] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[9] * 4)
                         >> 0x18);
-    local_18[5] = (char)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[9] * 4)
+    local_18[5] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[9] * 4)
                         >> 0x10);
-    local_18[6] = (char)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[9] * 4)
+    local_18[6] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[9] * 4)
                         >> 8);
-    local_18[7] = (char)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[9] * 4);
+    local_18[7] = (char)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[9] * 4);
     local_18[8] = (char)((uint)*(undefined4 *)
-                                (LAES_encrypt_te1 + (long)(int)(uint)local_38[0xd] * 4) >> 0x18);
+                                (&LAES_encrypt_te1 + (long)(int)(uint)local_38[0xd] * 4) >> 0x18);
     local_18[9] = (char)((uint)*(undefined4 *)
-                                (LAES_encrypt_te1 + (long)(int)(uint)local_38[0xd] * 4) >> 0x10);
+                                (&LAES_encrypt_te1 + (long)(int)(uint)local_38[0xd] * 4) >> 0x10);
     local_18[10] = (char)((uint)*(undefined4 *)
-                                 (LAES_encrypt_te1 + (long)(int)(uint)local_38[0xd] * 4) >> 8);
-    local_18[0xb] = (char)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[0xd] * 4);
+                                 (&LAES_encrypt_te1 + (long)(int)(uint)local_38[0xd] * 4) >> 8);
+    local_18[0xb] = (char)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[0xd] * 4);
     local_18[0xc] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[1] * 4) >> 0x18);
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[1] * 4) >> 0x18)
+    ;
     local_18[0xd] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[1] * 4) >> 0x10);
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[1] * 4) >> 0x10)
+    ;
     local_18[0xe] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[1] * 4) >> 8);
-    local_18[0xf] = (char)*(undefined4 *)(LAES_encrypt_te1 + (long)(int)(uint)local_38[1] * 4);
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[1] * 4) >> 8);
+    local_18[0xf] = (char)*(undefined4 *)(&LAES_encrypt_te1 + (long)(int)(uint)local_38[1] * 4);
     for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
       local_28[local_48] =
-           LAES_encrypt_xor
+           (&LAES_encrypt_xor)
            [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
-           (byte)LAES_encrypt_xor[(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)]
-           >> 4;
-    }
-    local_18[0] = (byte)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[10] * 4)
-                        >> 0x18);
-    local_18[1] = (char)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[10] * 4)
-                        >> 0x10);
-    local_18[2] = (char)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[10] * 4)
-                        >> 8);
-    local_18[3] = (char)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[10] * 4);
-    local_18[4] = (char)((uint)*(undefined4 *)
-                                (LAES_encrypt_te2 + (long)(int)(uint)local_38[0xe] * 4) >> 0x18);
-    local_18[5] = (char)((uint)*(undefined4 *)
-                                (LAES_encrypt_te2 + (long)(int)(uint)local_38[0xe] * 4) >> 0x10);
-    local_18[6] = (char)((uint)*(undefined4 *)
-                                (LAES_encrypt_te2 + (long)(int)(uint)local_38[0xe] * 4) >> 8);
-    local_18[7] = (char)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[0xe] * 4);
-    local_18[8] = (char)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[2] * 4)
-                        >> 0x18);
-    local_18[9] = (char)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[2] * 4)
-                        >> 0x10);
-    local_18[10] = (char)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[2] * 4)
-                         >> 8);
-    local_18[0xb] = (char)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[2] * 4);
-    local_18[0xc] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[6] * 4) >> 0x18);
-    local_18[0xd] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[6] * 4) >> 0x10);
-    local_18[0xe] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[6] * 4) >> 8);
-    local_18[0xf] = (char)*(undefined4 *)(LAES_encrypt_te2 + (long)(int)(uint)local_38[6] * 4);
-    for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
-      local_28[local_48] =
-           LAES_encrypt_xor
-           [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
-           (byte)LAES_encrypt_xor[(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)]
-           >> 4;
+           (byte)(&LAES_encrypt_xor)
+                 [(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)] >> 4;
     }
     local_18[0] = (byte)((uint)*(undefined4 *)
-                                (LAES_encrypt_te3 + (long)(int)(uint)local_38[0xf] * 4) >> 0x18);
+                                (&LAES_encrypt_te2 + (long)(int)(uint)local_38[10] * 4) >> 0x18);
     local_18[1] = (char)((uint)*(undefined4 *)
-                                (LAES_encrypt_te3 + (long)(int)(uint)local_38[0xf] * 4) >> 0x10);
+                                (&LAES_encrypt_te2 + (long)(int)(uint)local_38[10] * 4) >> 0x10);
     local_18[2] = (char)((uint)*(undefined4 *)
-                                (LAES_encrypt_te3 + (long)(int)(uint)local_38[0xf] * 4) >> 8);
-    local_18[3] = (char)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[0xf] * 4);
-    local_18[4] = (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[3] * 4)
+                                (&LAES_encrypt_te2 + (long)(int)(uint)local_38[10] * 4) >> 8);
+    local_18[3] = (char)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[10] * 4);
+    local_18[4] = (char)((uint)*(undefined4 *)
+                                (&LAES_encrypt_te2 + (long)(int)(uint)local_38[0xe] * 4) >> 0x18);
+    local_18[5] = (char)((uint)*(undefined4 *)
+                                (&LAES_encrypt_te2 + (long)(int)(uint)local_38[0xe] * 4) >> 0x10);
+    local_18[6] = (char)((uint)*(undefined4 *)
+                                (&LAES_encrypt_te2 + (long)(int)(uint)local_38[0xe] * 4) >> 8);
+    local_18[7] = (char)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[0xe] * 4);
+    local_18[8] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[2] * 4)
                         >> 0x18);
-    local_18[5] = (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[3] * 4)
+    local_18[9] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[2] * 4)
                         >> 0x10);
-    local_18[6] = (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[3] * 4)
-                        >> 8);
-    local_18[7] = (char)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[3] * 4);
-    local_18[8] = (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[7] * 4)
-                        >> 0x18);
-    local_18[9] = (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[7] * 4)
-                        >> 0x10);
-    local_18[10] = (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[7] * 4)
-                         >> 8);
-    local_18[0xb] = (char)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[7] * 4);
+    local_18[10] = (char)((uint)*(undefined4 *)
+                                 (&LAES_encrypt_te2 + (long)(int)(uint)local_38[2] * 4) >> 8);
+    local_18[0xb] = (char)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[2] * 4);
     local_18[0xc] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[0xb] * 4) >> 0x18
-               );
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[6] * 4) >> 0x18)
+    ;
     local_18[0xd] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[0xb] * 4) >> 0x10
-               );
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[6] * 4) >> 0x10)
+    ;
     local_18[0xe] =
-         (char)((uint)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[0xb] * 4) >> 8);
-    local_18[0xf] = (char)*(undefined4 *)(LAES_encrypt_te3 + (long)(int)(uint)local_38[0xb] * 4);
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[6] * 4) >> 8);
+    local_18[0xf] = (char)*(undefined4 *)(&LAES_encrypt_te2 + (long)(int)(uint)local_38[6] * 4);
     for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
       local_28[local_48] =
-           LAES_encrypt_xor
+           (&LAES_encrypt_xor)
            [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
-           (byte)LAES_encrypt_xor[(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)]
-           >> 4;
+           (byte)(&LAES_encrypt_xor)
+                 [(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)] >> 4;
+    }
+    local_18[0] = (byte)((uint)*(undefined4 *)
+                                (&LAES_encrypt_te3 + (long)(int)(uint)local_38[0xf] * 4) >> 0x18);
+    local_18[1] = (char)((uint)*(undefined4 *)
+                                (&LAES_encrypt_te3 + (long)(int)(uint)local_38[0xf] * 4) >> 0x10);
+    local_18[2] = (char)((uint)*(undefined4 *)
+                                (&LAES_encrypt_te3 + (long)(int)(uint)local_38[0xf] * 4) >> 8);
+    local_18[3] = (char)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[0xf] * 4);
+    local_18[4] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[3] * 4)
+                        >> 0x18);
+    local_18[5] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[3] * 4)
+                        >> 0x10);
+    local_18[6] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[3] * 4)
+                        >> 8);
+    local_18[7] = (char)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[3] * 4);
+    local_18[8] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[7] * 4)
+                        >> 0x18);
+    local_18[9] = (char)((uint)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[7] * 4)
+                        >> 0x10);
+    local_18[10] = (char)((uint)*(undefined4 *)
+                                 (&LAES_encrypt_te3 + (long)(int)(uint)local_38[7] * 4) >> 8);
+    local_18[0xb] = (char)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[7] * 4);
+    local_18[0xc] =
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[0xb] * 4) >>
+               0x18);
+    local_18[0xd] =
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[0xb] * 4) >>
+               0x10);
+    local_18[0xe] =
+         (char)((uint)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[0xb] * 4) >> 8);
+    local_18[0xf] = (char)*(undefined4 *)(&LAES_encrypt_te3 + (long)(int)(uint)local_38[0xb] * 4);
+    for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
+      local_28[local_48] =
+           (&LAES_encrypt_xor)
+           [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
+           (byte)(&LAES_encrypt_xor)
+                 [(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)] >> 4;
     }
     for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
       local_38[local_48] =
-           LAES_encrypt_xor
+           (&LAES_encrypt_xor)
            [(int)((uint)(local_28[local_48] >> 4) << 4 ^
                  (uint)(*(byte *)(lVar4 + (local_4c * 0x10 + local_48)) >> 4))] & 0xf0 ^
-           (byte)LAES_encrypt_xor
+           (byte)(&LAES_encrypt_xor)
                  [(int)((local_28[local_48] & 0xf) << 4 ^
                        *(byte *)(lVar4 + (local_4c * 0x10 + local_48)) & 0xf)] >> 4;
     }
   }
-  local_28[0] = LAES_encrypt_te4[(int)(uint)local_38[0]];
-  local_28[1] = LAES_encrypt_te4[(int)(uint)local_38[5]];
-  local_28[2] = LAES_encrypt_te4[(int)(uint)local_38[10]];
-  local_28[3] = LAES_encrypt_te4[(int)(uint)local_38[0xf]];
-  local_28[4] = LAES_encrypt_te4[(int)(uint)local_38[4]];
-  local_28[5] = LAES_encrypt_te4[(int)(uint)local_38[9]];
-  local_28[6] = LAES_encrypt_te4[(int)(uint)local_38[0xe]];
-  local_28[7] = LAES_encrypt_te4[(int)(uint)local_38[3]];
-  local_28[8] = LAES_encrypt_te4[(int)(uint)local_38[8]];
-  local_28[9] = LAES_encrypt_te4[(int)(uint)local_38[0xd]];
-  local_28[10] = LAES_encrypt_te4[(int)(uint)local_38[2]];
-  local_28[0xb] = LAES_encrypt_te4[(int)(uint)local_38[7]];
-  local_28[0xc] = LAES_encrypt_te4[(int)(uint)local_38[0xc]];
-  local_28[0xd] = LAES_encrypt_te4[(int)(uint)local_38[1]];
-  local_28[0xe] = LAES_encrypt_te4[(int)(uint)local_38[6]];
-  local_28[0xf] = LAES_encrypt_te4[(int)(uint)local_38[0xb]];
+  local_28[0] = (&LAES_encrypt_te4)[(int)(uint)local_38[0]];
+  local_28[1] = (&LAES_encrypt_te4)[(int)(uint)local_38[5]];
+  local_28[2] = (&LAES_encrypt_te4)[(int)(uint)local_38[10]];
+  local_28[3] = (&LAES_encrypt_te4)[(int)(uint)local_38[0xf]];
+  local_28[4] = (&LAES_encrypt_te4)[(int)(uint)local_38[4]];
+  local_28[5] = (&LAES_encrypt_te4)[(int)(uint)local_38[9]];
+  local_28[6] = (&LAES_encrypt_te4)[(int)(uint)local_38[0xe]];
+  local_28[7] = (&LAES_encrypt_te4)[(int)(uint)local_38[3]];
+  local_28[8] = (&LAES_encrypt_te4)[(int)(uint)local_38[8]];
+  local_28[9] = (&LAES_encrypt_te4)[(int)(uint)local_38[0xd]];
+  local_28[10] = (&LAES_encrypt_te4)[(int)(uint)local_38[2]];
+  local_28[0xb] = (&LAES_encrypt_te4)[(int)(uint)local_38[7]];
+  local_28[0xc] = (&LAES_encrypt_te4)[(int)(uint)local_38[0xc]];
+  local_28[0xd] = (&LAES_encrypt_te4)[(int)(uint)local_38[1]];
+  local_28[0xe] = (&LAES_encrypt_te4)[(int)(uint)local_38[6]];
+  local_28[0xf] = (&LAES_encrypt_te4)[(int)(uint)local_38[0xb]];
   for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
     *(byte *)(param_2 + local_48) =
-         LAES_encrypt_xor1
+         (&LAES_encrypt_xor1)
          [(int)((uint)(local_28[local_48] >> 4) << 4 ^
                (uint)(*(byte *)(lVar4 + (local_4c * 0x10 + local_48)) >> 4))] & 0xf0 ^
-         (byte)LAES_encrypt_xor1
+         (byte)(&LAES_encrypt_xor1)
                [(int)((local_28[local_48] & 0xf) << 4 ^
                      *(byte *)(lVar4 + (local_4c * 0x10 + local_48)) & 0xf)] >> 4;
   }
@@ -1628,155 +1631,161 @@ void wbsk_WB_LAES_decrypt(long param_1,long param_2,long *param_3)
   }
   for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
     local_38[local_48] =
-         LAES_decrypt_xor0
+         (&LAES_decrypt_xor0)
          [(int)((uint)(*(byte *)(param_1 + local_48) >> 4) << 4 ^
                (uint)(*(byte *)(lVar4 + local_48) >> 4))] & 0xf0 ^
-         (byte)LAES_decrypt_xor0
+         (byte)(&LAES_decrypt_xor0)
                [(int)((*(byte *)(param_1 + local_48) & 0xf) << 4 ^ *(byte *)(lVar4 + local_48) & 0xf
                      )] >> 4;
   }
   for (local_4c = 1; local_4c < (iVar1 >> 5) + 6; local_4c = local_4c + 1) {
-    local_28[0] = (byte)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[0] * 4)
+    local_28[0] = (byte)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[0] * 4)
                         >> 0x18);
-    local_28[1] = (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[0] * 4)
+    local_28[1] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[0] * 4)
                         >> 0x10);
-    local_28[2] = (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[0] * 4)
+    local_28[2] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[0] * 4)
                         >> 8);
-    local_28[3] = (char)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[0] * 4);
-    local_28[4] = (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[4] * 4)
+    local_28[3] = (char)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[0] * 4);
+    local_28[4] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[4] * 4)
                         >> 0x18);
-    local_28[5] = (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[4] * 4)
+    local_28[5] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[4] * 4)
                         >> 0x10);
-    local_28[6] = (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[4] * 4)
+    local_28[6] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[4] * 4)
                         >> 8);
-    local_28[7] = (char)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[4] * 4);
-    local_28[8] = (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[8] * 4)
+    local_28[7] = (char)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[4] * 4);
+    local_28[8] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[8] * 4)
                         >> 0x18);
-    local_28[9] = (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[8] * 4)
+    local_28[9] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[8] * 4)
                         >> 0x10);
-    local_28[10] = (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[8] * 4)
-                         >> 8);
-    local_28[0xb] = (char)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[8] * 4);
+    local_28[10] = (char)((uint)*(undefined4 *)
+                                 (&LAES_decrypt_td0 + (long)(int)(uint)local_38[8] * 4) >> 8);
+    local_28[0xb] = (char)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[8] * 4);
     local_28[0xc] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[0xc] * 4) >> 0x18
-               );
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[0xc] * 4) >>
+               0x18);
     local_28[0xd] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[0xc] * 4) >> 0x10
-               );
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[0xc] * 4) >>
+               0x10);
     local_28[0xe] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[0xc] * 4) >> 8);
-    local_28[0xf] = (char)*(undefined4 *)(LAES_decrypt_td0 + (long)(int)(uint)local_38[0xc] * 4);
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[0xc] * 4) >> 8);
+    local_28[0xf] = (char)*(undefined4 *)(&LAES_decrypt_td0 + (long)(int)(uint)local_38[0xc] * 4);
     local_18[0] = (byte)((uint)*(undefined4 *)
-                                (LAES_decrypt_td1 + (long)(int)(uint)local_38[0xd] * 4) >> 0x18);
+                                (&LAES_decrypt_td1 + (long)(int)(uint)local_38[0xd] * 4) >> 0x18);
     local_18[1] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td1 + (long)(int)(uint)local_38[0xd] * 4) >> 0x10);
+                                (&LAES_decrypt_td1 + (long)(int)(uint)local_38[0xd] * 4) >> 0x10);
     local_18[2] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td1 + (long)(int)(uint)local_38[0xd] * 4) >> 8);
-    local_18[3] = (char)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[0xd] * 4);
-    local_18[4] = (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[1] * 4)
+                                (&LAES_decrypt_td1 + (long)(int)(uint)local_38[0xd] * 4) >> 8);
+    local_18[3] = (char)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[0xd] * 4);
+    local_18[4] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[1] * 4)
                         >> 0x18);
-    local_18[5] = (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[1] * 4)
+    local_18[5] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[1] * 4)
                         >> 0x10);
-    local_18[6] = (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[1] * 4)
+    local_18[6] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[1] * 4)
                         >> 8);
-    local_18[7] = (char)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[1] * 4);
-    local_18[8] = (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[5] * 4)
+    local_18[7] = (char)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[1] * 4);
+    local_18[8] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[5] * 4)
                         >> 0x18);
-    local_18[9] = (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[5] * 4)
+    local_18[9] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[5] * 4)
                         >> 0x10);
-    local_18[10] = (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[5] * 4)
-                         >> 8);
-    local_18[0xb] = (char)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[5] * 4);
-    local_18[0xc] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[9] * 4) >> 0x18);
-    local_18[0xd] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[9] * 4) >> 0x10);
-    local_18[0xe] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[9] * 4) >> 8);
-    local_18[0xf] = (char)*(undefined4 *)(LAES_decrypt_td1 + (long)(int)(uint)local_38[9] * 4);
-    for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
-      local_28[local_48] =
-           LAES_decrypt_xor
-           [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
-           (byte)LAES_decrypt_xor[(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)]
-           >> 4;
-    }
-    local_18[0] = (byte)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[10] * 4)
-                        >> 0x18);
-    local_18[1] = (char)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[10] * 4)
-                        >> 0x10);
-    local_18[2] = (char)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[10] * 4)
-                        >> 8);
-    local_18[3] = (char)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[10] * 4);
-    local_18[4] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td2 + (long)(int)(uint)local_38[0xe] * 4) >> 0x18);
-    local_18[5] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td2 + (long)(int)(uint)local_38[0xe] * 4) >> 0x10);
-    local_18[6] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td2 + (long)(int)(uint)local_38[0xe] * 4) >> 8);
-    local_18[7] = (char)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[0xe] * 4);
-    local_18[8] = (char)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[2] * 4)
-                        >> 0x18);
-    local_18[9] = (char)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[2] * 4)
-                        >> 0x10);
-    local_18[10] = (char)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[2] * 4)
-                         >> 8);
-    local_18[0xb] = (char)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[2] * 4);
-    local_18[0xc] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[6] * 4) >> 0x18);
-    local_18[0xd] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[6] * 4) >> 0x10);
-    local_18[0xe] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[6] * 4) >> 8);
-    local_18[0xf] = (char)*(undefined4 *)(LAES_decrypt_td2 + (long)(int)(uint)local_38[6] * 4);
-    for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
-      local_28[local_48] =
-           LAES_decrypt_xor
-           [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
-           (byte)LAES_decrypt_xor[(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)]
-           >> 4;
-    }
-    local_18[0] = (byte)((uint)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[7] * 4)
-                        >> 0x18);
-    local_18[1] = (char)((uint)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[7] * 4)
-                        >> 0x10);
-    local_18[2] = (char)((uint)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[7] * 4)
-                        >> 8);
-    local_18[3] = (char)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[7] * 4);
-    local_18[4] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td3 + (long)(int)(uint)local_38[0xb] * 4) >> 0x18);
-    local_18[5] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td3 + (long)(int)(uint)local_38[0xb] * 4) >> 0x10);
-    local_18[6] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td3 + (long)(int)(uint)local_38[0xb] * 4) >> 8);
-    local_18[7] = (char)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[0xb] * 4);
-    local_18[8] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td3 + (long)(int)(uint)local_38[0xf] * 4) >> 0x18);
-    local_18[9] = (char)((uint)*(undefined4 *)
-                                (LAES_decrypt_td3 + (long)(int)(uint)local_38[0xf] * 4) >> 0x10);
     local_18[10] = (char)((uint)*(undefined4 *)
-                                 (LAES_decrypt_td3 + (long)(int)(uint)local_38[0xf] * 4) >> 8);
-    local_18[0xb] = (char)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[0xf] * 4);
+                                 (&LAES_decrypt_td1 + (long)(int)(uint)local_38[5] * 4) >> 8);
+    local_18[0xb] = (char)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[5] * 4);
     local_18[0xc] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[3] * 4) >> 0x18);
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[9] * 4) >> 0x18)
+    ;
     local_18[0xd] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[3] * 4) >> 0x10);
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[9] * 4) >> 0x10)
+    ;
     local_18[0xe] =
-         (char)((uint)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[3] * 4) >> 8);
-    local_18[0xf] = (char)*(undefined4 *)(LAES_decrypt_td3 + (long)(int)(uint)local_38[3] * 4);
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[9] * 4) >> 8);
+    local_18[0xf] = (char)*(undefined4 *)(&LAES_decrypt_td1 + (long)(int)(uint)local_38[9] * 4);
     for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
       local_28[local_48] =
-           LAES_decrypt_xor
+           (&LAES_decrypt_xor)
            [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
-           (byte)LAES_decrypt_xor[(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)]
-           >> 4;
+           (byte)(&LAES_decrypt_xor)
+                 [(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)] >> 4;
+    }
+    local_18[0] = (byte)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td2 + (long)(int)(uint)local_38[10] * 4) >> 0x18);
+    local_18[1] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td2 + (long)(int)(uint)local_38[10] * 4) >> 0x10);
+    local_18[2] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td2 + (long)(int)(uint)local_38[10] * 4) >> 8);
+    local_18[3] = (char)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[10] * 4);
+    local_18[4] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td2 + (long)(int)(uint)local_38[0xe] * 4) >> 0x18);
+    local_18[5] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td2 + (long)(int)(uint)local_38[0xe] * 4) >> 0x10);
+    local_18[6] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td2 + (long)(int)(uint)local_38[0xe] * 4) >> 8);
+    local_18[7] = (char)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[0xe] * 4);
+    local_18[8] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[2] * 4)
+                        >> 0x18);
+    local_18[9] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[2] * 4)
+                        >> 0x10);
+    local_18[10] = (char)((uint)*(undefined4 *)
+                                 (&LAES_decrypt_td2 + (long)(int)(uint)local_38[2] * 4) >> 8);
+    local_18[0xb] = (char)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[2] * 4);
+    local_18[0xc] =
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[6] * 4) >> 0x18)
+    ;
+    local_18[0xd] =
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[6] * 4) >> 0x10)
+    ;
+    local_18[0xe] =
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[6] * 4) >> 8);
+    local_18[0xf] = (char)*(undefined4 *)(&LAES_decrypt_td2 + (long)(int)(uint)local_38[6] * 4);
+    for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
+      local_28[local_48] =
+           (&LAES_decrypt_xor)
+           [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
+           (byte)(&LAES_decrypt_xor)
+                 [(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)] >> 4;
+    }
+    local_18[0] = (byte)((uint)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[7] * 4)
+                        >> 0x18);
+    local_18[1] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[7] * 4)
+                        >> 0x10);
+    local_18[2] = (char)((uint)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[7] * 4)
+                        >> 8);
+    local_18[3] = (char)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[7] * 4);
+    local_18[4] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td3 + (long)(int)(uint)local_38[0xb] * 4) >> 0x18);
+    local_18[5] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td3 + (long)(int)(uint)local_38[0xb] * 4) >> 0x10);
+    local_18[6] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td3 + (long)(int)(uint)local_38[0xb] * 4) >> 8);
+    local_18[7] = (char)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[0xb] * 4);
+    local_18[8] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td3 + (long)(int)(uint)local_38[0xf] * 4) >> 0x18);
+    local_18[9] = (char)((uint)*(undefined4 *)
+                                (&LAES_decrypt_td3 + (long)(int)(uint)local_38[0xf] * 4) >> 0x10);
+    local_18[10] = (char)((uint)*(undefined4 *)
+                                 (&LAES_decrypt_td3 + (long)(int)(uint)local_38[0xf] * 4) >> 8);
+    local_18[0xb] = (char)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[0xf] * 4);
+    local_18[0xc] =
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[3] * 4) >> 0x18)
+    ;
+    local_18[0xd] =
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[3] * 4) >> 0x10)
+    ;
+    local_18[0xe] =
+         (char)((uint)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[3] * 4) >> 8);
+    local_18[0xf] = (char)*(undefined4 *)(&LAES_decrypt_td3 + (long)(int)(uint)local_38[3] * 4);
+    for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
+      local_28[local_48] =
+           (&LAES_decrypt_xor)
+           [(int)((uint)(local_28[local_48] >> 4) << 4 ^ (uint)(local_18[local_48] >> 4))] & 0xf0 ^
+           (byte)(&LAES_decrypt_xor)
+                 [(int)((local_28[local_48] & 0xf) << 4 ^ local_18[local_48] & 0xf)] >> 4;
     }
     for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
       local_38[local_48] =
-           LAES_decrypt_xor
+           (&LAES_decrypt_xor)
            [(int)((uint)(local_28[local_48] >> 4) << 4 ^
                  (uint)(*(byte *)(lVar4 + (local_4c * 0x10 + local_48)) >> 4))] & 0xf0 ^
-           (byte)LAES_decrypt_xor
+           (byte)(&LAES_decrypt_xor)
                  [(int)((local_28[local_48] & 0xf) << 4 ^
                        *(byte *)(lVar4 + (local_4c * 0x10 + local_48)) & 0xf)] >> 4;
     }
@@ -1799,10 +1808,10 @@ void wbsk_WB_LAES_decrypt(long param_1,long param_2,long *param_3)
   local_28[0xf] = (&LAES_decrypt_td4)[(int)(uint)local_38[3]];
   for (local_48 = 0; local_48 < 0x10; local_48 = local_48 + 1) {
     *(byte *)(param_2 + local_48) =
-         LAES_decrypt_xor1
+         (&LAES_decrypt_xor1)
          [(int)((uint)(local_28[local_48] >> 4) << 4 ^
                (uint)(*(byte *)(lVar4 + (local_4c * 0x10 + local_48)) >> 4))] & 0xf0 ^
-         (byte)LAES_decrypt_xor1
+         (byte)(&LAES_decrypt_xor1)
                [(int)((local_28[local_48] & 0xf) << 4 ^
                      *(byte *)(lVar4 + (local_4c * 0x10 + local_48)) & 0xf)] >> 4;
   }
@@ -2089,7 +2098,7 @@ void base64_decode(long param_1,ulong param_2,long *param_3)
 
 // WARNING: Globals starting with '_' overlap smaller symbols at the same address
 
-void FUN_00106428(long param_1,int param_2,long param_3)
+void convert_hex_arr_to_char_arr(long param_1,int param_2,long param_3)
 
 {
   ulong uVar1;
@@ -2121,8 +2130,9 @@ void FUN_00106428(long param_1,int param_2,long param_3)
 // WARNING: Removing unreachable block (ram,0x001066c8)
 
 undefined4
-FUN_00106520(undefined8 *param_1,undefined8 param_2,undefined4 param_3,undefined8 param_4,
-            undefined8 param_5,undefined8 param_6,long param_7)
+wbsk_basic_jni_encrypt
+          (undefined8 *param_1,undefined8 param_2,undefined4 param_3,undefined8 param_4,
+          undefined8 param_5,undefined8 param_6,long param_7)
 
 {
   uint uVar1;
@@ -2146,9 +2156,9 @@ FUN_00106520(undefined8 *param_1,undefined8 param_2,undefined4 param_3,undefined
         local_24 = 0xffffffff;
       }
       else {
-        FUN_00106428(local_18,uVar1,local_10);
+        convert_hex_arr_to_char_arr(local_18,uVar1,local_10);
         if (param_7 == 0) {
-          if (DAT_0011b028 == 4) {
+          if (alg == 4) {
             local_24 = wbsk_LAES_ecb_encrypt
                                  (param_2,param_3,param_4,param_5,local_10,(int)uVar1 / 2,1);
           }
@@ -2176,8 +2186,9 @@ FUN_00106520(undefined8 *param_1,undefined8 param_2,undefined4 param_3,undefined
 // WARNING: Removing unreachable block (ram,0x001068a4)
 
 undefined4
-FUN_001066fc(undefined8 *param_1,undefined8 param_2,undefined4 param_3,undefined8 param_4,
-            undefined8 param_5,undefined8 param_6,long param_7)
+wbsk_basic_jni_decrypt
+          (undefined8 *param_1,undefined8 param_2,undefined4 param_3,undefined8 param_4,
+          undefined8 param_5,undefined8 param_6,long param_7)
 
 {
   uint uVar1;
@@ -2201,9 +2212,9 @@ FUN_001066fc(undefined8 *param_1,undefined8 param_2,undefined4 param_3,undefined
         local_24 = 0xffffffff;
       }
       else {
-        FUN_00106428(local_18,uVar1,local_10);
+        convert_hex_arr_to_char_arr(local_18,uVar1,local_10);
         if (param_7 == 0) {
-          if (DAT_0011b028 == 4) {
+          if (alg == 4) {
             local_24 = wbsk_LAES_ecb_decrypt
                                  (param_2,param_3,param_4,param_5,local_10,(int)uVar1 / 2,1);
           }
@@ -2228,7 +2239,7 @@ FUN_001066fc(undefined8 *param_1,undefined8 param_2,undefined4 param_3,undefined
 
 
 
-undefined8 FUN_001068d8(long param_1,long param_2)
+undefined8 parameter_check(long param_1,long param_2)
 
 {
   undefined8 uVar1;
@@ -2272,9 +2283,9 @@ void Java_com_wbsk_CryptoTool_laesEncryptStringWithBase64
   local_20 = (void *)0x0;
   local_18 = (void *)0x0;
   local_38 = 0;
-  DAT_0011b028 = 4;
+  alg = 4;
   local_48 = param_1;
-  local_38 = FUN_001068d8(param_3,param_4);
+  local_38 = parameter_check(param_3,param_4);
   if (local_38 == 0) {
     local_28 = (**(code **)(*local_48 + 0x548))(local_48,param_3,0);
     if (local_28 == 0) {
@@ -2292,7 +2303,8 @@ void Java_com_wbsk_CryptoTool_laesEncryptStringWithBase64
         local_38 = -1;
       }
       else {
-        local_38 = FUN_00106520(&local_48,local_28,local_34,local_20,&local_3c,param_4,param_5);
+        local_38 = wbsk_basic_jni_encrypt
+                             (&local_48,local_28,local_34,local_20,&local_3c,param_4,param_5);
         if (local_38 == 0) {
           local_18 = (void *)base64_encode(local_20,(long)local_3c,auStack_30);
         }
@@ -2351,9 +2363,9 @@ void Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64
   local_28 = (void *)0x0;
   local_20 = (void *)0x0;
   local_3c = 0;
-  DAT_0011b028 = 4;
+  alg = 4;
   local_48 = param_1;
-  local_3c = FUN_001068d8(param_3,param_4);
+  local_3c = parameter_check(param_3,param_4);
   if (local_3c == 0) {
     local_30 = (**(code **)(*local_48 + 0x548))(local_48,param_3,0);
     if (local_30 == 0) {
@@ -2369,8 +2381,9 @@ void Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64
         local_3c = -1;
       }
       else {
-        local_3c = FUN_001066fc(&local_48,local_28,local_38 & 0xffffffff,local_20,&local_40,param_4,
-                                param_5);
+        local_3c = wbsk_basic_jni_decrypt
+                             (&local_48,local_28,local_38 & 0xffffffff,local_20,&local_40,param_4,
+                              param_5);
         if (local_3c == 0) {
           *(undefined1 *)((long)local_20 + (long)local_40) = 0;
         }
@@ -2435,9 +2448,9 @@ void Java_com_wbsk_CryptoTool_laesEncryptByteArr
   local_28 = 0;
   local_20 = 0;
   local_18 = (void *)0x0;
-  DAT_0011b028 = 4;
+  alg = 4;
   local_38 = param_1;
-  local_28 = FUN_001068d8(param_3,param_4);
+  local_28 = parameter_check(param_3,param_4);
   if (local_28 == 0) {
     local_20 = (**(code **)(*local_38 + 0x5c0))(local_38,param_3,0);
     if (local_20 == 0) {
@@ -2455,7 +2468,8 @@ void Java_com_wbsk_CryptoTool_laesEncryptByteArr
         local_28 = -1;
       }
       else {
-        local_28 = FUN_00106520(&local_38,local_20,local_24,local_18,&local_2c,param_4,param_5);
+        local_28 = wbsk_basic_jni_encrypt
+                             (&local_38,local_20,local_24,local_18,&local_2c,param_4,param_5);
         if (local_28 == 0) {
           local_10 = (**(code **)(*local_38 + 0x580))(local_38,local_2c);
           (**(code **)(*local_38 + 0x680))(local_38,local_10,0,local_2c,local_18);
@@ -2507,9 +2521,9 @@ void Java_com_wbsk_CryptoTool_laesDecryptByteArr
   local_28 = 0;
   local_20 = 0;
   local_18 = (void *)0x0;
-  DAT_0011b028 = 4;
+  alg = 4;
   local_38 = param_1;
-  local_28 = FUN_001068d8(param_3,param_4);
+  local_28 = parameter_check(param_3,param_4);
   if (local_28 == 0) {
     local_20 = (**(code **)(*local_38 + 0x5c0))(local_38,param_3,0);
     if (local_20 == 0) {
@@ -2523,7 +2537,8 @@ void Java_com_wbsk_CryptoTool_laesDecryptByteArr
         local_28 = -1;
       }
       else {
-        local_28 = FUN_001066fc(&local_38,local_20,local_24,local_18,&local_2c,param_4,param_5);
+        local_28 = wbsk_basic_jni_decrypt
+                             (&local_38,local_20,local_24,local_18,&local_2c,param_4,param_5);
         if (local_28 == 0) {
           local_10 = (**(code **)(*local_38 + 0x580))(local_38,local_2c);
           (**(code **)(*local_38 + 0x680))(local_38,local_10,0,local_2c,local_18);
@@ -2576,9 +2591,9 @@ void Java_com_wbsk_CryptoTool_commonEncryptByteArr
   local_28 = 0;
   local_20 = 0;
   local_18 = (void *)0x0;
-  DAT_0011b028 = 8;
+  alg = 8;
   local_38 = param_1;
-  local_28 = FUN_001068d8(param_3,param_4);
+  local_28 = parameter_check(param_3,param_4);
   if (local_28 == 0) {
     local_20 = (**(code **)(*local_38 + 0x5c0))(local_38,param_3,0);
     if (local_20 == 0) {
@@ -2596,7 +2611,8 @@ void Java_com_wbsk_CryptoTool_commonEncryptByteArr
         local_28 = -1;
       }
       else {
-        local_28 = FUN_00106520(&local_38,local_20,local_24,local_18,&local_2c,param_4,param_5);
+        local_28 = wbsk_basic_jni_encrypt
+                             (&local_38,local_20,local_24,local_18,&local_2c,param_4,param_5);
         if (local_28 == 0) {
           local_10 = (**(code **)(*local_38 + 0x580))(local_38,local_2c);
           (**(code **)(*local_38 + 0x680))(local_38,local_10,0,local_2c,local_18);
@@ -2648,9 +2664,9 @@ void Java_com_wbsk_CryptoTool_commonDecryptByteArr
   local_28 = 0;
   local_20 = 0;
   local_18 = (void *)0x0;
-  DAT_0011b028 = 8;
+  alg = 8;
   local_38 = param_1;
-  local_28 = FUN_001068d8(param_3,param_4);
+  local_28 = parameter_check(param_3,param_4);
   if (local_28 == 0) {
     local_20 = (**(code **)(*local_38 + 0x5c0))(local_38,param_3,0);
     if (local_20 == 0) {
@@ -2664,7 +2680,8 @@ void Java_com_wbsk_CryptoTool_commonDecryptByteArr
         local_28 = -1;
       }
       else {
-        local_28 = FUN_001066fc(&local_38,local_20,local_24,local_18,&local_2c,param_4,param_5);
+        local_28 = wbsk_basic_jni_decrypt
+                             (&local_38,local_20,local_24,local_18,&local_2c,param_4,param_5);
         if (local_28 == 0) {
           local_10 = (**(code **)(*local_38 + 0x580))(local_38,local_2c);
           (**(code **)(*local_38 + 0x680))(local_38,local_10,0,local_2c,local_18);
