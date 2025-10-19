@@ -25,10 +25,14 @@ LOGCAT_PID=$!
 
 trap 'kill "$LOGCAT_PID" >/dev/null 2>&1 || true' EXIT
 
-# Wake up the screen and launch the app to trigger logging
+# Wake up the screen
 adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1
+# Unlock the screen
+adb shell input keyevent KEYCODE_MENU >/dev/null 2>&1
+# Launch the app
 adb shell monkey -p "$APP_PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 sleep 10
+# Swipe up to refresh
 adb shell input swipe 500 200 500 1600 200 >/dev/null 2>&1
 sleep 5
 
