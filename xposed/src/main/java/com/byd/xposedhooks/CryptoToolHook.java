@@ -3,7 +3,9 @@ package com.byd.xposedhooks;
 import android.util.Log;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -11,7 +13,7 @@ import de.robv.android.xposed.XposedBridge;
 public final class CryptoToolHook {
     private static final String TAG = "BYD-Xposed";
     private static Method hookBridgeMethod;
-    private static volatile boolean keysLogged;
+    private static volatile boolean settingsLogged;
 
     private CryptoToolHook() {
     }
@@ -45,7 +47,7 @@ public final class CryptoToolHook {
 
     private static void hookMethod(String className, Method method) throws Throwable {
         final String tag = className + "#" + method.getName();
-        final boolean maybeLogBangcleKeys =
+        final boolean maybeLogBangcleSettings =
                 "com.bangcle.comapiprotect.CheckCodeUtil".equals(className)
                         && ("checkcode".equals(method.getName())
                         || "decheckcode".equals(method.getName()));
@@ -54,8 +56,8 @@ public final class CryptoToolHook {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 Log.i(TAG, tag + " args=" + formatArgs(param.args));
-                if (maybeLogBangcleKeys) {
-                    dumpBangcleStaticKeys(param.thisObject.getClass().getClassLoader());
+                if (maybeLogBangcleSettings) {
+                    dumpBangcleStaticSettings(param.thisObject.getClass().getClassLoader());
                 }
             }
 
@@ -82,28 +84,36 @@ public final class CryptoToolHook {
         return sb.toString();
     }
 
-    private static void dumpBangcleStaticKeys(ClassLoader loader) {
-        if (keysLogged) {
+    private static void dumpBangcleStaticSettings(ClassLoader loader) {
+        if (settingsLogged) {
             return;
         }
         try {
             Class<?> settings = Class.forName("com.bangcle.safekb.api.BangcleKBSettings", false, loader);
-            String rsa = (String) settings.getField("RSA_PUB_KEY").get(null);
-            String sm2 = (String) settings.getField("SM2_PUB_KEY").get(null);
-            String enc = (String) settings.getField("WBC_KEY_ENC").get(null);
-            String dec = (String) settings.getField("WBC_KEY_DEC").get(null);
-            String iv = (String) settings.getField("WBC_KEY_IV").get(null);
-            Log.i(TAG, "Bangcle RSA_PUB_KEY len=" + (rsa != null ? rsa.length() : -1) + " val=" + rsa);
-            Log.i(TAG, "Bangcle SM2_PUB_KEY len=" + (sm2 != null ? sm2.length() : -1) + " val=" + sm2);
-            Log.i(TAG, "Bangcle WBC_KEY_ENC len=" + (enc != null ? enc.length() : -1) + " val=" + enc);
-            Log.i(TAG, "Bangcle WBC_KEY_DEC len=" + (dec != null ? dec.length() : -1) + " val=" + dec);
-            Log.i(TAG, "Bangcle WBC_KEY_IV len=" + (iv != null ? iv.length() : -1) + " val=" + iv);
-            keysLogged = true;
+            for (Field field : settings.getDeclaredFields()) {
+                if (!Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
+                field.setAccessible(true);
+                Object value = field.get(null);
+                Log.i(TAG, "Bangcle " + field.getName()
+                        + " type=" + field.getType().getSimpleName()
+                        + " value=" + describeBangcleValue(value));
+            }
+            settingsLogged = true;
         } catch (ClassNotFoundException e) {
             Log.i(TAG, "BangcleKBSettings not yet available: " + e.getMessage());
         } catch (Throwable t) {
-            Log.e(TAG, "Failed dumping Bangcle keys - " + Log.getStackTraceString(t));
+            Log.e(TAG, "Failed dumping Bangcle settings - " + Log.getStackTraceString(t));
         }
+    }
+
+    private static String describeBangcleValue(Object value) {
+        if (value instanceof CharSequence) {
+            CharSequence text = (CharSequence) value;
+            return "len=" + text.length() + " val=" + text;
+        }
+        return formatValue(value);
     }
 
     private static String formatValue(Object value) {
