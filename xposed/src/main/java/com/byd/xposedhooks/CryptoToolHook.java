@@ -24,12 +24,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -37,6 +41,7 @@ import de.robv.android.xposed.XposedBridge;
 public final class CryptoToolHook {
     private static final String TAG = "BYD-Xposed";
     private static final int LOGCAT_CHUNK_LIMIT = 3900;
+    private static final long HTTP_BODY_CAPTURE_LIMIT = 128L * 1024L;
 
     private static final String CLASS_CRYPTO_TOOL = "com.wbsk.CryptoTool";
     private static final String CLASS_JNI_UTIL = "jniutil.JniUtil";
@@ -71,6 +76,7 @@ public final class CryptoToolHook {
     private static volatile boolean randomHookInstalled;
     private static volatile boolean nativeDumped;
     private static volatile boolean cipherHookInstalled;
+    private static volatile boolean okHttpHookInstalled;
     private static volatile long checkcodeWindowEndMs;
     private static volatile long checkcodeThreadId;
 
@@ -94,6 +100,7 @@ public final class CryptoToolHook {
                 hookClassMethods(classLoader, entry.getKey(), entry.getValue());
             }
             hookCipherMethods();
+            hookOkHttp(classLoader);
             hookMessageDigest();
             hookRandom();
             installed = true;
@@ -755,6 +762,795 @@ public final class CryptoToolHook {
                 logError("Failed to hook javax.crypto.Cipher - " + Log.getStackTraceString(t));
             }
         }
+    }
+
+    private static void hookOkHttp(ClassLoader classLoader) {
+        if (okHttpHookInstalled || classLoader == null) {
+            return;
+        }
+        synchronized (CryptoToolHook.class) {
+            if (okHttpHookInstalled) {
+                return;
+            }
+            int fallbackHooks = hookObfuscatedOkHttp(classLoader);
+            if (fallbackHooks > 0) {
+                okHttpHookInstalled = true;
+                logInfo("Installed OkHttp fallback hooks count=" + fallbackHooks);
+                return;
+            }
+            logInfo("OkHttp fallback hooks not installed");
+        }
+    }
+
+    private static int hookObfuscatedOkHttp(ClassLoader classLoader) {
+        List<String> classNames = enumerateDexClasses(classLoader);
+        if (classNames.isEmpty()) {
+            return 0;
+        }
+        int hooks = 0;
+        for (String className : classNames) {
+            if (className == null || !className.startsWith("okhttp3.")) {
+                continue;
+            }
+            if (className.startsWith("okhttp3.internal.publicsuffix")) {
+                continue;
+            }
+            try {
+                Class<?> clazz = classLoader.loadClass(className);
+                int modifiers = clazz.getModifiers();
+                if (clazz.isInterface() || Modifier.isAbstract(modifiers)) {
+                    continue;
+                }
+                for (Method method : clazz.getDeclaredMethods()) {
+                    if (!looksLikeCallExecutionMethod(method)) {
+                        continue;
+                    }
+                    final Method target = method;
+                    target.setAccessible(true);
+                    hookMember(target, new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            try {
+                                Object response = param.getResult();
+                                if (response == null || !isOkHttpResponseLike(response.getClass())) {
+                                    return;
+                                }
+                                logHttpExchange(response, classLoader);
+                            } catch (Throwable t) {
+                                logError("OkHttp fallback hook failure - " + Log.getStackTraceString(t));
+                            }
+                        }
+                    });
+                    hooks += 1;
+                    logInfo("OkHttp fallback hook " + clazz.getName() + "#" + target.getName());
+                }
+            } catch (Throwable ignored) {
+                // continue
+            }
+        }
+        return hooks;
+    }
+
+    private static boolean looksLikeCallExecutionMethod(Method method) {
+        if (method == null || Modifier.isStatic(method.getModifiers())) {
+            return false;
+        }
+        if (method.getParameterTypes().length != 0) {
+            return false;
+        }
+        Class<?> returnType = method.getReturnType();
+        if (returnType == null || returnType.isPrimitive() || !returnType.getName().startsWith("okhttp3.")) {
+            return false;
+        }
+        if ("execute".equals(method.getName())) {
+            return true;
+        }
+        for (Class<?> ex : method.getExceptionTypes()) {
+            if (IOException.class.isAssignableFrom(ex)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isOkHttpResponseLike(Class<?> type) {
+        if (type == null || !type.getName().startsWith("okhttp3.")) {
+            return false;
+        }
+        boolean hasCodeLike = false;
+        boolean hasPeekLike = false;
+        for (Method method : type.getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers())) {
+                continue;
+            }
+            if (method.getParameterTypes().length == 0 && method.getReturnType() == int.class) {
+                hasCodeLike = true;
+            }
+            if (method.getParameterTypes().length == 1
+                    && method.getParameterTypes()[0] == long.class
+                    && method.getReturnType() != null
+                    && method.getReturnType().getName().startsWith("okhttp3.")) {
+                hasPeekLike = true;
+            }
+            if ("peekBody".equals(method.getName())) {
+                return true;
+            }
+        }
+        return hasCodeLike && hasPeekLike;
+    }
+
+    private static List<String> enumerateDexClasses(ClassLoader loader) {
+        List<String> classes = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        try {
+            Class<?> baseDexClassLoader = Class.forName("dalvik.system.BaseDexClassLoader");
+            if (!baseDexClassLoader.isInstance(loader)) {
+                return classes;
+            }
+            Field pathListField = findField(baseDexClassLoader, "pathList");
+            if (pathListField == null) {
+                return classes;
+            }
+            Object pathList = pathListField.get(loader);
+            if (pathList == null) {
+                return classes;
+            }
+            Field dexElementsField = findField(pathList.getClass(), "dexElements");
+            if (dexElementsField == null) {
+                return classes;
+            }
+            Object[] dexElements = (Object[]) dexElementsField.get(pathList);
+            if (dexElements == null) {
+                return classes;
+            }
+            for (Object element : dexElements) {
+                if (element == null) {
+                    continue;
+                }
+                Field dexFileField = findField(element.getClass(), "dexFile");
+                if (dexFileField == null) {
+                    continue;
+                }
+                Object dexFile = dexFileField.get(element);
+                if (dexFile == null) {
+                    continue;
+                }
+                Method entriesMethod = dexFile.getClass().getDeclaredMethod("entries");
+                entriesMethod.setAccessible(true);
+                Object entriesObj = entriesMethod.invoke(dexFile);
+                if (!(entriesObj instanceof java.util.Enumeration)) {
+                    continue;
+                }
+                @SuppressWarnings("unchecked")
+                java.util.Enumeration<String> entries = (java.util.Enumeration<String>) entriesObj;
+                while (entries.hasMoreElements()) {
+                    String className = entries.nextElement();
+                    if (className != null && seen.add(className)) {
+                        classes.add(className);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            logError("OkHttp class enumeration failed - " + Log.getStackTraceString(t));
+        }
+        return classes;
+    }
+
+    private static Field findField(Class<?> type, String name) {
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(name);
+                field.setAccessible(true);
+                return field;
+            } catch (NoSuchFieldException ignored) {
+                // continue
+            }
+        }
+        return null;
+    }
+
+    private static void logHttpExchange(Object response, ClassLoader classLoader) {
+        Object request = invokeNoArg(response, "request");
+        if (request == null) {
+            request = findLikelyRequestObject(response);
+        }
+        if (request == null) {
+            return;
+        }
+
+        String method = safeToString(invokeNoArg(request, "method"));
+        String url = safeToString(invokeNoArg(request, "url"));
+        String requestSummary = safeToString(request);
+        if (method.isEmpty()) {
+            method = firstRegexGroup(requestSummary, "method=([A-Z]+)");
+        }
+        if (url.isEmpty()) {
+            url = firstRegexGroup(requestSummary, "url=([^,}\\s]+)");
+        }
+        if (!"POST".equalsIgnoreCase(method)) {
+            return;
+        }
+
+        String requestHeaders = resolveHeaders(request);
+        Object requestBodyObj = invokeNoArg(request, "body");
+        if (requestBodyObj == null) {
+            requestBodyObj = findLikelyRequestBodyObject(request);
+        }
+        byte[] requestBody = readRequestBodyBytes(requestBodyObj, classLoader);
+
+        int statusCode = asInt(invokeNoArg(response, "code"), -1);
+        String responseSummary = safeToString(response);
+        if (statusCode < 0) {
+            String parsed = firstRegexGroup(responseSummary, "code=([0-9]{3})");
+            if (!parsed.isEmpty()) {
+                try {
+                    statusCode = Integer.parseInt(parsed);
+                } catch (NumberFormatException ignored) {
+                    // ignore
+                }
+            }
+        }
+        byte[] responseBody = readResponseBodyBytes(response);
+
+        String requestBodyText = requestBody != null
+                ? formatHttpBody(requestBody)
+                : "unavailable";
+        String responseBodyText = responseBody != null
+                ? formatHttpBody(responseBody)
+                : "unavailable";
+
+        String line = "HTTP method=POST"
+                + " url=" + singleLine(url)
+                + " reqHeaders=" + singleLine(requestHeaders)
+                + " reqBody=" + singleLine(requestBodyText)
+                + " respCode=" + statusCode
+                + " respBody=" + singleLine(responseBodyText);
+        logInfo(line);
+    }
+
+    private static byte[] readRequestBodyBytes(Object requestBody, ClassLoader classLoader) {
+        if (requestBody == null) {
+            return null;
+        }
+        if (asBoolean(invokeNoArg(requestBody, "isDuplex"), false)) {
+            return null;
+        }
+        if (asBoolean(invokeNoArg(requestBody, "isOneShot"), false)) {
+            return null;
+        }
+
+        byte[] directBytes = tryReadBodyViaNoArgMethods(requestBody);
+        if (directBytes != null && directBytes.length > 0) {
+            return directBytes;
+        }
+
+        byte[] fieldBytes = tryReadBodyViaFields(requestBody);
+        if (fieldBytes != null && fieldBytes.length > 0) {
+            return fieldBytes;
+        }
+
+        Method writeTo = findSingleArgMethod(requestBody.getClass(), "writeTo");
+        if (writeTo == null) {
+            writeTo = findLikelyWriteToMethod(requestBody.getClass());
+        }
+        if (writeTo == null) {
+            return null;
+        }
+        Class<?> sinkType = writeTo.getParameterTypes()[0];
+        Object buffer = createOkioBuffer(sinkType, classLoader);
+        if (buffer == null || !sinkType.isInstance(buffer)) {
+            return null;
+        }
+
+        try {
+            writeTo.setAccessible(true);
+            writeTo.invoke(requestBody, buffer);
+            return readOkioBufferBytes(buffer, HTTP_BODY_CAPTURE_LIMIT);
+        } catch (Throwable t) {
+            logError("HTTP request body capture failed - " + Log.getStackTraceString(t));
+            return null;
+        }
+    }
+
+    private static byte[] tryReadBodyViaNoArgMethods(Object requestBody) {
+        if (requestBody == null) {
+            return null;
+        }
+        for (Class<?> current = requestBody.getClass(); current != null && current != Object.class; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (Modifier.isStatic(method.getModifiers()) || method.getParameterTypes().length != 0) {
+                    continue;
+                }
+                if (shouldSkipNoArgMethod(method)) {
+                    continue;
+                }
+                Class<?> returnType = method.getReturnType();
+                if (returnType != byte[].class && returnType != String.class) {
+                    continue;
+                }
+                try {
+                    method.setAccessible(true);
+                    Object value = method.invoke(requestBody);
+                    if (value instanceof byte[]) {
+                        byte[] data = (byte[]) value;
+                        if (data.length > 0) {
+                            return data.length > HTTP_BODY_CAPTURE_LIMIT
+                                    ? Arrays.copyOf(data, (int) HTTP_BODY_CAPTURE_LIMIT)
+                                    : data;
+                        }
+                    } else if (value instanceof String) {
+                        String text = (String) value;
+                        if (isLikelyBodyText(text)) {
+                            byte[] data = text.getBytes(StandardCharsets.UTF_8);
+                            return data.length > HTTP_BODY_CAPTURE_LIMIT
+                                    ? Arrays.copyOf(data, (int) HTTP_BODY_CAPTURE_LIMIT)
+                                    : data;
+                        }
+                    }
+                } catch (Throwable ignored) {
+                    // continue
+                }
+            }
+        }
+        return null;
+    }
+
+    private static byte[] tryReadBodyViaFields(Object requestBody) {
+        if (requestBody == null) {
+            return null;
+        }
+        for (Class<?> current = requestBody.getClass(); current != null && current != Object.class; current = current.getSuperclass()) {
+            for (Field field : current.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
+                try {
+                    field.setAccessible(true);
+                    Object value = field.get(requestBody);
+                    if (value == null) {
+                        continue;
+                    }
+                    if (value instanceof byte[]) {
+                        byte[] data = (byte[]) value;
+                        if (data.length > 0) {
+                            return data.length > HTTP_BODY_CAPTURE_LIMIT
+                                    ? Arrays.copyOf(data, (int) HTTP_BODY_CAPTURE_LIMIT)
+                                    : data;
+                        }
+                    }
+                    if (value instanceof String) {
+                        String text = (String) value;
+                        if (isLikelyBodyText(text)) {
+                            byte[] data = text.getBytes(StandardCharsets.UTF_8);
+                            return data.length > HTTP_BODY_CAPTURE_LIMIT
+                                    ? Arrays.copyOf(data, (int) HTTP_BODY_CAPTURE_LIMIT)
+                                    : data;
+                        }
+                    }
+                    if (value instanceof ByteBuffer) {
+                        byte[] data = copyBuffer((ByteBuffer) value);
+                        if (data.length > 0) {
+                            return data.length > HTTP_BODY_CAPTURE_LIMIT
+                                    ? Arrays.copyOf(data, (int) HTTP_BODY_CAPTURE_LIMIT)
+                                    : data;
+                        }
+                    }
+                    byte[] nested = tryReadBodyViaNoArgMethods(value);
+                    if (nested != null && nested.length > 0) {
+                        return nested;
+                    }
+                } catch (Throwable ignored) {
+                    // continue
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean shouldSkipNoArgMethod(Method method) {
+        if (method == null) {
+            return true;
+        }
+        String name = method.getName();
+        return "toString".equals(name)
+                || "hashCode".equals(name)
+                || "getClass".equals(name)
+                || "clone".equals(name)
+                || "finalize".equals(name);
+    }
+
+    private static boolean isLikelyBodyText(String text) {
+        if (text == null) {
+            return false;
+        }
+        String value = text.trim();
+        if (value.isEmpty()) {
+            return false;
+        }
+        if (value.matches("^[A-Za-z0-9_.$]+@[0-9a-fA-F]+$")) {
+            return false;
+        }
+        if (value.startsWith("{") || value.startsWith("[") || value.startsWith("F{")) {
+            return true;
+        }
+        return value.contains("\"request\"")
+                || value.contains("\"response\"")
+                || value.contains("content-type")
+                || value.contains("application/json");
+    }
+
+    private static String resolveHeaders(Object owner) {
+        if (owner == null) {
+            return "";
+        }
+        String headers = safeToString(invokeNoArg(owner, "headers"));
+        if (headers.isEmpty()) {
+            headers = safeToString(owner);
+        }
+        String extracted = extractHeadersFromSummary(headers);
+        if (!extracted.isEmpty()) {
+            headers = extracted;
+        }
+        headers = singleLine(headers);
+        return looksLikeHeaderLine(headers) ? headers : "";
+    }
+
+    private static String extractHeadersFromSummary(String summary) {
+        if (summary == null || summary.isEmpty()) {
+            return "";
+        }
+        String value = summary;
+        if (value.startsWith("Request{") || value.startsWith("Response{")) {
+            value = singleLine(value);
+        }
+        String headers = firstRegexGroup(value, "headers=\\[(.*?)]");
+        if (headers.isEmpty()) {
+            headers = firstRegexGroup(value, "headers:\\s*\\[(.*?)]");
+        }
+        return headers;
+    }
+
+    private static boolean looksLikeHeaderLine(String text) {
+        if (text == null) {
+            return false;
+        }
+        String value = text.trim();
+        if (value.isEmpty()) {
+            return false;
+        }
+        String lower = value.toLowerCase(Locale.ROOT);
+        if (!(lower.contains(":") || lower.contains("="))) {
+            return false;
+        }
+        return lower.contains("user-agent")
+                || lower.contains("content-type")
+                || lower.contains("content-length")
+                || lower.contains("accept")
+                || lower.contains("host")
+                || lower.contains("cookie")
+                || lower.contains("authorization");
+    }
+
+    private static byte[] readResponseBodyBytes(Object response) {
+        if (response == null) {
+            return null;
+        }
+        try {
+            Method peekBody = findMethod(response.getClass(), "peekBody", long.class);
+            if (peekBody == null) {
+                peekBody = findLikelyPeekBodyMethod(response.getClass());
+            }
+            if (peekBody == null) {
+                return null;
+            }
+            Object bodyCopy = peekBody.invoke(response, HTTP_BODY_CAPTURE_LIMIT);
+            if (bodyCopy == null) {
+                return null;
+            }
+            Object bytes = invokeNoArg(bodyCopy, "bytes");
+            if (bytes instanceof byte[]) {
+                return (byte[]) bytes;
+            }
+            Object bytesFallback = invokeNoArgReturningType(bodyCopy, byte[].class);
+            if (bytesFallback instanceof byte[]) {
+                return (byte[]) bytesFallback;
+            }
+            Object text = invokeNoArg(bodyCopy, "string");
+            if (text instanceof String) {
+                return ((String) text).getBytes(StandardCharsets.UTF_8);
+            }
+            Object textFallback = invokeNoArgReturningType(bodyCopy, String.class);
+            if (textFallback instanceof String) {
+                return ((String) textFallback).getBytes(StandardCharsets.UTF_8);
+            }
+        } catch (Throwable t) {
+            logError("HTTP response body capture failed - " + Log.getStackTraceString(t));
+        }
+        return null;
+    }
+
+    private static Object createOkioBuffer(Class<?> sinkType, ClassLoader fallbackLoader) {
+        ClassLoader[] loaders = new ClassLoader[]{
+                sinkType != null ? sinkType.getClassLoader() : null,
+                fallbackLoader,
+                CryptoToolHook.class.getClassLoader()
+        };
+        for (ClassLoader loader : loaders) {
+            if (loader == null) {
+                continue;
+            }
+            try {
+                Class<?> bufferClass = Class.forName("okio.Buffer", false, loader);
+                return bufferClass.getDeclaredConstructor().newInstance();
+            } catch (Throwable ignored) {
+                // continue
+            }
+        }
+        return null;
+    }
+
+    private static byte[] readOkioBufferBytes(Object buffer, long maxBytes) {
+        if (buffer == null) {
+            return null;
+        }
+        try {
+            long available = asLong(invokeNoArg(buffer, "size"), 0L);
+            long limit = available > 0 ? Math.min(available, maxBytes) : maxBytes;
+
+            Method readByteArrayWithLen = findMethod(buffer.getClass(), "readByteArray", long.class);
+            if (readByteArrayWithLen != null) {
+                Object out = readByteArrayWithLen.invoke(buffer, limit);
+                if (out instanceof byte[]) {
+                    return (byte[]) out;
+                }
+            }
+
+            Method readByteArray = findMethod(buffer.getClass(), "readByteArray");
+            if (readByteArray != null) {
+                Object out = readByteArray.invoke(buffer);
+                if (out instanceof byte[]) {
+                    byte[] data = (byte[]) out;
+                    if (data.length > maxBytes) {
+                        return Arrays.copyOf(data, (int) maxBytes);
+                    }
+                    return data;
+                }
+            }
+        } catch (Throwable t) {
+            logError("okio.Buffer read failed - " + Log.getStackTraceString(t));
+        }
+        return null;
+    }
+
+    private static Method findSingleArgMethod(Class<?> type, String methodName) {
+        if (type == null) {
+            return null;
+        }
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (methodName.equals(method.getName()) && method.getParameterTypes().length == 1) {
+                    return method;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Method findLikelyWriteToMethod(Class<?> type) {
+        if (type == null) {
+            return null;
+        }
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (Modifier.isStatic(method.getModifiers())) {
+                    continue;
+                }
+                if (method.getParameterTypes().length != 1 || method.getReturnType() != Void.TYPE) {
+                    continue;
+                }
+                for (Class<?> ex : method.getExceptionTypes()) {
+                    if (IOException.class.isAssignableFrom(ex)) {
+                        method.setAccessible(true);
+                        return method;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Method findLikelyPeekBodyMethod(Class<?> type) {
+        if (type == null) {
+            return null;
+        }
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (Modifier.isStatic(method.getModifiers())) {
+                    continue;
+                }
+                Class<?>[] params = method.getParameterTypes();
+                if (params.length != 1 || params[0] != long.class) {
+                    continue;
+                }
+                Class<?> returnType = method.getReturnType();
+                if (returnType != null && returnType.getName().startsWith("okhttp3.")) {
+                    method.setAccessible(true);
+                    return method;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Object findLikelyRequestObject(Object response) {
+        if (response == null) {
+            return null;
+        }
+        for (Method method : response.getClass().getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers()) || method.getParameterTypes().length != 0) {
+                continue;
+            }
+            Class<?> returnType = method.getReturnType();
+            if (returnType == null || returnType.isPrimitive() || !returnType.getName().startsWith("okhttp3.")) {
+                continue;
+            }
+            try {
+                method.setAccessible(true);
+                Object value = method.invoke(response);
+                if (value == null) {
+                    continue;
+                }
+                String text = String.valueOf(value);
+                if (text.contains("Request{") || text.contains("method=") || text.contains("url=")) {
+                    return value;
+                }
+            } catch (Throwable ignored) {
+                // continue
+            }
+        }
+        return null;
+    }
+
+    private static Object findLikelyRequestBodyObject(Object request) {
+        if (request == null) {
+            return null;
+        }
+        for (Method method : request.getClass().getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers()) || method.getParameterTypes().length != 0) {
+                continue;
+            }
+            Class<?> returnType = method.getReturnType();
+            if (returnType == null || returnType.isPrimitive()) {
+                continue;
+            }
+            try {
+                method.setAccessible(true);
+                Object value = method.invoke(request);
+                if (value == null) {
+                    continue;
+                }
+                if (findSingleArgMethod(value.getClass(), "writeTo") != null
+                        || findLikelyWriteToMethod(value.getClass()) != null) {
+                    return value;
+                }
+            } catch (Throwable ignored) {
+                // continue
+            }
+        }
+        return null;
+    }
+
+    private static Object invokeNoArgReturningType(Object target, Class<?> expectedReturnType) {
+        if (target == null || expectedReturnType == null) {
+            return null;
+        }
+        for (Method method : target.getClass().getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers()) || method.getParameterTypes().length != 0) {
+                continue;
+            }
+            if (method.getReturnType() != expectedReturnType) {
+                continue;
+            }
+            try {
+                method.setAccessible(true);
+                return method.invoke(target);
+            } catch (Throwable ignored) {
+                // continue
+            }
+        }
+        return null;
+    }
+
+    private static String firstRegexGroup(String value, String regex) {
+        if (value == null || value.isEmpty() || regex == null || regex.isEmpty()) {
+            return "";
+        }
+        try {
+            Matcher matcher = Pattern.compile(regex).matcher(value);
+            if (matcher.find() && matcher.groupCount() >= 1) {
+                String out = matcher.group(1);
+                return out == null ? "" : out;
+            }
+        } catch (Throwable ignored) {
+            // ignore
+        }
+        return "";
+    }
+
+    private static Method findMethod(Class<?> type, String name, Class<?>... paramTypes) {
+        if (type == null) {
+            return null;
+        }
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                Method method = current.getDeclaredMethod(name, paramTypes);
+                method.setAccessible(true);
+                return method;
+            } catch (NoSuchMethodException ignored) {
+                // continue
+            }
+        }
+        return null;
+    }
+
+    private static Object invokeNoArg(Object target, String methodName) {
+        if (target == null) {
+            return null;
+        }
+        Method method = findMethod(target.getClass(), methodName);
+        if (method == null) {
+            return null;
+        }
+        try {
+            return method.invoke(target);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String formatHttpBody(byte[] body) {
+        if (body == null) {
+            return "len=0";
+        }
+        if (isMostlyPrintable(body)) {
+            return "len=" + body.length + " text=" + new String(body, StandardCharsets.UTF_8);
+        }
+        return "len=" + body.length + " hex=" + toHex(body);
+    }
+
+    private static String singleLine(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        String normalised = value.replace('\n', ' ')
+                .replace('\r', ' ')
+                .replace('\t', ' ');
+        return normalised.trim().replaceAll("\\s{2,}", " ");
+    }
+
+    private static String safeToString(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private static int asInt(Object value, int fallback) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return fallback;
+    }
+
+    private static long asLong(Object value, long fallback) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return fallback;
+    }
+
+    private static boolean asBoolean(Object value, boolean fallback) {
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        return fallback;
     }
 
     private static void prepareCipherOperation(XC_MethodHook.MethodHookParam param, Method method) {
