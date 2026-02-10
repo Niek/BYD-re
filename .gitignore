@@ -1,5 +1,7 @@
 com.byd.bydautolink*
 .env
+.env.local
+.env.*.local
 *.apk
 class*
 dumps.txt
@@ -13,3 +15,8 @@ AGENTS.md
 .codex/
 byd/*
 status.html
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+.docker/

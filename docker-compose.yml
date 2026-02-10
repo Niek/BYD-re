@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  byd-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - BYD_USERNAME=${BYD_USERNAME}
+      - BYD_PASSWORD=${BYD_PASSWORD}
+      - BYD_COUNTRY_CODE=${BYD_COUNTRY_CODE:-NL}
+      - BYD_LANGUAGE=${BYD_LANGUAGE:-en}
+      - BYD_IMEI_MD5=${BYD_IMEI_MD5:-00000000000000000000000000000000}
+      - BYD_VIN=${BYD_VIN}
+      - REFRESH_INTERVAL_MINUTES=${REFRESH_INTERVAL_MINUTES:-15}
+      - PORT=3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

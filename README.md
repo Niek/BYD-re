@@ -4,6 +4,13 @@ Working reverse of the BYD app HTTP crypto path for the pinned APK build.
 
 Base host: `https://dilinkappoversea-eu.byd.auto`
 
+> **🐳 Quick Docker Start**: See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for containerized deployment to GitHub Container Registry and other hosting options.
+>
+> ```bash
+> docker-compose up
+> # Access: http://localhost:3000
+> ```
+
 ## App & Transport Snapshot
 
 - App: BYD overseas Android app (`com.byd.bydautolink`).
@@ -88,6 +95,8 @@ Every BYD app call in this repo uses two crypto layers:
 
 `client.js` is the main entrypoint (most useful path).
 
+### Quick Start (Node.js)
+
 Create `.env`:
 
 ```dotenv
@@ -101,7 +110,78 @@ Run:
 node client.js
 ```
 
-Current client flow:
+### Docker Deployment
+
+Build and run with Docker:
+
+```bash
+docker build -t byd-client .
+docker run -it --env-file .env byd-client
+```
+
+Or use docker-compose:
+
+```bash
+docker-compose up
+```
+
+#### Configuration
+
+Environment variables (defaults in `docker-compose.yml`):
+
+```env
+# Required
+BYD_USERNAME=your-email@example.com
+BYD_PASSWORD=your-password
+
+# Optional
+BYD_COUNTRY_CODE=NL
+BYD_LANGUAGE=en
+BYD_IMEI_MD5=00000000000000000000000000000000
+BYD_VIN=your-vehicle-vin
+
+# Server configuration
+PORT=3000
+REFRESH_INTERVAL_MINUTES=15  # How often to refresh vehicle data
+```
+
+#### GitHub Container Registry
+
+Push to GitHub Container Registry:
+
+```bash
+docker build -t ghcr.io/your-username/byd-client:latest .
+docker push ghcr.io/your-username/byd-client:latest
+```
+
+Run from registry:
+
+```bash
+docker run -it \
+  --env BYD_USERNAME=your@email.com \
+  --env BYD_PASSWORD=your-password \
+  --env REFRESH_INTERVAL_MINUTES=15 \
+  -p 3000:3000 \
+  ghcr.io/your-username/byd-client:latest
+```
+
+#### Accessing the Dashboard
+
+Once running, visit: `http://localhost:3000`
+
+Health check: `http://localhost:3000/health`
+
+The server periodically refreshes vehicle data and serves a self-contained HTML dashboard (`status.html`) with:
+- Vehicle status and location
+- Real-time telemetry
+- GPS information
+- Last update timestamp
+
+Data refresh occurs automatically based on `REFRESH_INTERVAL_MINUTES` (default: 15 minutes).
+
+### Client Flow
+
+Current client execution flow:
 - `/app/account/login`
 - `/app/account/getAllListByUserId`
 - `/vehicleInfo/vehicle/vehicleRealTimeRequest` (single trigger)
@@ -109,15 +189,9 @@ Current client flow:
 - `/control/getGpsInfo` (single trigger)
 - `/control/getGpsInfoResult` (poll until populated)
 
-The client also writes a self-contained dashboard to `status.html`.
+The client writes a self-contained dashboard to `status.html`.
 
 ![Status dashboard screenshot](screenshot.png)
-
-Optional `BYD_*` overrides:
-- `BYD_COUNTRY_CODE`
-- `BYD_LANGUAGE`
-- `BYD_VIN`
-- `BYD_IMEI_MD5`
 - `BYD_APP_VERSION`
 - `BYD_APP_INNER_VERSION`
 - `BYD_OS_TYPE`
