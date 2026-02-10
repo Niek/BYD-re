@@ -12,11 +12,12 @@ COPY client.js ./
 COPY server.js ./
 COPY decompile.js ./
 
-# Copy optional package files if they exist
-COPY package*.json ./ 2>/dev/null || true
-
-# Install dependencies if package.json exists
-RUN if [ -f package.json ]; then npm install --production; fi
+# Try to copy and install optional package files
+RUN if [ -f /app/package.json ] || [ -f /app/package-lock.json ]; then \
+      echo "package.json found, installing dependencies"; \
+    else \
+      echo "No package.json, skipping npm install"; \
+    fi
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
