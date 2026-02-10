@@ -109,6 +109,10 @@ Current client flow:
 - `/control/getGpsInfo` (single trigger)
 - `/control/getGpsInfoResult` (poll until populated)
 
+The client also writes a self-contained dashboard to `status.html`.
+
+![Status dashboard screenshot](screenshot.png)
+
 Optional `BYD_*` overrides:
 - `BYD_COUNTRY_CODE`
 - `BYD_LANGUAGE`

@@ -2,6 +2,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const fs = require('fs');
 const util = require('util');
 const { loadEnvFile } = require('node:process');
 const bangcle = require('./bangcle');
@@ -581,6 +582,837 @@ async function pollGpsInfo(session, vin) {
   };
 }
 
+function serialiseForInlineScript(value) {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003C')
+    .replace(/>/g, '\\u003E')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+function buildStatusHtml(output) {
+  const serialisedOutput = serialiseForInlineScript(output);
+  const generatedAt = new Date().toISOString();
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BYD Live Status</title>
+  <style>
+    :root {
+      --bg: #eef4f7;
+      --surface: #ffffff;
+      --ink: #0f2a3b;
+      --muted: #5c7385;
+      --line: #d6e1e8;
+      --accent: #00789f;
+      --accent-soft: #e5f4fa;
+      --shadow: 0 8px 20px rgba(16, 36, 51, 0.1);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, #deedf4 0, transparent 32%),
+        radial-gradient(circle at bottom right, #f6f2df 0, transparent 30%),
+        var(--bg);
+      padding: 14px;
+    }
+    .page {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+    .topbar {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .topbar h1 {
+      margin: 0;
+      font-size: 1.38rem;
+      line-height: 1.1;
+      letter-spacing: 0.02em;
+    }
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .generated-at {
+      color: var(--muted);
+      font-size: 0.86rem;
+      white-space: nowrap;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .eye-toggle {
+      border: 1px solid #c3d8e4;
+      background: #ffffff;
+      border-radius: 10px;
+      width: 36px;
+      height: 32px;
+      font-size: 1.06rem;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(20, 41, 59, 0.08);
+    }
+    .eye-toggle:hover {
+      background: #f3f9fc;
+    }
+    .eye-toggle[aria-pressed="true"] {
+      background: #e8f3f9;
+      border-color: #9ec4d8;
+    }
+    .sensitive-value {
+      transition: filter 120ms ease;
+      display: inline-block;
+    }
+    .mask-sensitive .sensitive-value {
+      filter: blur(0.32em);
+      user-select: none;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      min-height: 250px;
+      overflow: hidden;
+    }
+    .hero-visual {
+      position: relative;
+      background: linear-gradient(150deg, #daeaf2, #f4f7f9);
+      border-right: 1px solid var(--line);
+      min-height: 230px;
+    }
+    .hero-visual img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 16px;
+      display: none;
+    }
+    .image-placeholder {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #6f8595;
+      font-size: 0.93rem;
+      text-align: center;
+      padding: 18px;
+    }
+    .hero-content {
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+    .hero-content h2 {
+      margin: 0;
+      font-size: 1.22rem;
+      line-height: 1.2;
+    }
+    .hero-subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.91rem;
+    }
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+    .badge {
+      background: var(--accent-soft);
+      color: #0f3b52;
+      border: 1px solid #c7dce6;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 0.78rem;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .metrics {
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 250px;
+    }
+    .metrics h3 {
+      margin: 0 0 10px;
+      font-size: 0.96rem;
+      color: #184157;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      align-content: start;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #f9fbfc;
+      display: grid;
+      gap: 3px;
+      min-height: 56px;
+    }
+    .metric-label {
+      color: #5a7283;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      line-height: 1.2;
+    }
+    .metric-value {
+      font-size: 0.94rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .detail-grid {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .compact {
+      padding: 12px;
+      min-height: 180px;
+    }
+    .compact h3 {
+      margin: 0 0 8px;
+      font-size: 0.9rem;
+      color: #184157;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .kv {
+      display: grid;
+      gap: 6px;
+      align-content: start;
+    }
+    .kv-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px dashed #deeaef;
+      font-size: 0.84rem;
+      line-height: 1.2;
+    }
+    .kv-row:last-child {
+      border-bottom: 0;
+    }
+    .kv-row span {
+      color: #5a7283;
+    }
+    .kv-row strong {
+      font-size: 0.86rem;
+      text-align: right;
+      max-width: 220px;
+      word-break: break-word;
+    }
+    .raw {
+      padding: 12px;
+    }
+    details {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      background: #f7fafc;
+    }
+    details:last-child {
+      margin-bottom: 0;
+    }
+    summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 9px 11px;
+      font-weight: 600;
+      font-size: 0.84rem;
+      color: #184157;
+    }
+    summary::-webkit-details-marker {
+      display: none;
+    }
+    pre {
+      margin: 0;
+      padding: 10px 11px 12px;
+      border-top: 1px solid var(--line);
+      overflow-x: auto;
+      white-space: pre;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      color: #223f53;
+      background: #fdfefe;
+    }
+    .empty {
+      color: #708799;
+      font-size: 0.84rem;
+      padding: 5px 0;
+    }
+    @media (max-width: 1100px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+      .detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .hero {
+        grid-template-columns: 1fr;
+      }
+      .hero-visual {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        min-height: 210px;
+      }
+    }
+    @media (max-width: 760px) {
+      body {
+        padding: 10px;
+      }
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .topbar-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div>
+        <h1>BYD Live Status</h1>
+        <p class="subtitle">Snapshot generated by client.js from current API state.</p>
+      </div>
+      <div class="topbar-right">
+        <button id="sensitivity-toggle" class="eye-toggle" type="button" aria-label="Toggle sensitive blur" title="Blur sensitive values" aria-pressed="false">👀</button>
+        <div class="generated-at" id="generated-at">-</div>
+      </div>
+    </header>
+
+    <main class="dashboard">
+      <section class="card hero">
+        <div class="hero-visual">
+          <img id="car-image" alt="Vehicle image">
+          <div class="image-placeholder" id="car-image-placeholder">No vehicle image URL in current payload.</div>
+        </div>
+        <div class="hero-content">
+          <h2 id="car-name">Vehicle</h2>
+          <p class="hero-subtitle" id="car-subtitle">-</p>
+          <div class="badge-row" id="identity-badges"></div>
+        </div>
+      </section>
+
+      <section class="card metrics">
+        <h3>Live Status</h3>
+        <div class="metric-grid" id="summary-metrics"></div>
+      </section>
+
+      <div class="detail-grid">
+        <section class="card compact">
+          <h3>Doors / Locks / Windows</h3>
+          <div class="kv" id="doors-content"></div>
+        </section>
+        <section class="card compact">
+          <h3>Tires / Charge</h3>
+          <div class="kv" id="tires-content"></div>
+        </section>
+        <section class="card compact">
+          <h3>GPS / Polling</h3>
+          <div class="kv" id="gps-content"></div>
+        </section>
+      </div>
+    </main>
+
+    <section class="card raw">
+      <details>
+        <summary>Full output JSON</summary>
+        <pre id="raw-output"></pre>
+      </details>
+      <details>
+        <summary>vehicleInfo JSON</summary>
+        <pre id="raw-vehicle"></pre>
+      </details>
+      <details>
+        <summary>gpsInfo JSON</summary>
+        <pre id="raw-gps"></pre>
+      </details>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var data = ${serialisedOutput};
+      var generatedAt = ${JSON.stringify(generatedAt)};
+
+      function isObject(value) {
+        return value !== null && typeof value === 'object' && !Array.isArray(value);
+      }
+
+      function nonEmpty(value) {
+        return value !== undefined && value !== null && String(value).trim() !== '';
+      }
+
+      function firstDefined(values) {
+        for (var i = 0; i < values.length; i += 1) {
+          if (nonEmpty(values[i])) {
+            return values[i];
+          }
+        }
+        return '';
+      }
+
+      function firstString(values) {
+        for (var i = 0; i < values.length; i += 1) {
+          if (typeof values[i] === 'string' && values[i].trim()) {
+            return values[i].trim();
+          }
+        }
+        return '';
+      }
+
+      function pick(obj, keys) {
+        if (!isObject(obj)) {
+          return '';
+        }
+        for (var i = 0; i < keys.length; i += 1) {
+          var key = keys[i];
+          if (Object.prototype.hasOwnProperty.call(obj, key) && nonEmpty(obj[key])) {
+            return obj[key];
+          }
+        }
+        return '';
+      }
+
+      function asNumber(value) {
+        if (value === undefined || value === null) {
+          return null;
+        }
+        if (typeof value === 'string' && value.trim() === '') {
+          return null;
+        }
+        var num = Number(value);
+        if (Number.isFinite(num)) {
+          return num;
+        }
+        return null;
+      }
+
+      function formatValue(value) {
+        if (!nonEmpty(value)) {
+          return '-';
+        }
+        if (typeof value === 'boolean') {
+          return value ? 'true' : 'false';
+        }
+        if (typeof value === 'number') {
+          if (Number.isInteger(value)) {
+            return String(value);
+          }
+          return value.toFixed(1);
+        }
+        if (typeof value === 'string') {
+          return value;
+        }
+        return JSON.stringify(value);
+      }
+
+      function formatTimestamp(value) {
+        var num = asNumber(value);
+        if (num === null) {
+          return formatValue(value);
+        }
+        if (num > 1000000000) {
+          var ms = num > 9999999999 ? num : num * 1000;
+          var date = new Date(ms);
+          if (!Number.isNaN(date.getTime())) {
+            return date.toLocaleString();
+          }
+        }
+        return formatValue(value);
+      }
+
+      function formatDistance(value) {
+        var num = asNumber(value);
+        if (num === null) {
+          return formatValue(value);
+        }
+        return Number.isInteger(num) ? String(num) + ' km' : num.toFixed(1) + ' km';
+      }
+
+      function formatPercent(value) {
+        var num = asNumber(value);
+        if (num === null) {
+          return formatValue(value);
+        }
+        return Number.isInteger(num) ? String(num) + '%' : num.toFixed(1) + '%';
+      }
+
+      function formatTemp(value) {
+        var num = asNumber(value);
+        if (num === null) {
+          return formatValue(value);
+        }
+        return Number.isInteger(num) ? String(num) + '°C' : num.toFixed(1) + '°C';
+      }
+
+      function formatSpeed(value) {
+        var num = asNumber(value);
+        if (num === null) {
+          return formatValue(value);
+        }
+        return Number.isInteger(num) ? String(num) + ' km/h' : num.toFixed(1) + ' km/h';
+      }
+
+      function mapOnlineState(value) {
+        var num = asNumber(value);
+        if (num === 1) {
+          return 'online';
+        }
+        if (num === 2) {
+          return 'offline';
+        }
+        if (num === 0) {
+          return 'unknown';
+        }
+        return formatValue(value);
+      }
+
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function setText(id, value) {
+        var el = document.getElementById(id);
+        if (!el) {
+          return;
+        }
+        el.textContent = nonEmpty(value) ? String(value) : '-';
+      }
+
+      function formatDisplayValue(value, sensitive) {
+        var text = escapeHtml(formatValue(value));
+        if (!sensitive) {
+          return text;
+        }
+        return '<span class="sensitive-value">' + text + '</span>';
+      }
+
+      function renderBadgeRow(id, badges) {
+        var el = document.getElementById(id);
+        if (!el) {
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < badges.length; i += 1) {
+          var badge = badges[i];
+          if (!badge || !nonEmpty(badge[1])) {
+            continue;
+          }
+          html += '<span class="badge">' + escapeHtml(badge[0]) + ': ' + formatDisplayValue(badge[1], Boolean(badge[2])) + '</span>';
+        }
+        el.innerHTML = html || '<span class="badge">No identity details</span>';
+      }
+
+      function renderMetrics(id, metrics) {
+        var el = document.getElementById(id);
+        if (!el) {
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < metrics.length; i += 1) {
+          var item = metrics[i];
+          if (!item || !nonEmpty(item[1])) {
+            continue;
+          }
+          html += '<article class="metric">';
+          html += '<span class="metric-label">' + escapeHtml(item[0]) + '</span>';
+          html += '<strong class="metric-value">' + escapeHtml(formatValue(item[1])) + '</strong>';
+          html += '</article>';
+        }
+        el.innerHTML = html || '<div class="empty">No live metrics available.</div>';
+      }
+
+      function renderRows(id, rows) {
+        var el = document.getElementById(id);
+        if (!el) {
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < rows.length; i += 1) {
+          var row = rows[i];
+          if (!row || !nonEmpty(row[1])) {
+            continue;
+          }
+          html += '<div class="kv-row">';
+          html += '<span>' + escapeHtml(row[0]) + '</span>';
+          html += '<strong>' + formatDisplayValue(row[1], Boolean(row[2])) + '</strong>';
+          html += '</div>';
+        }
+        el.innerHTML = html || '<div class="empty">No data.</div>';
+      }
+
+      function stringifyPretty(value) {
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch (err) {
+          return String(value);
+        }
+      }
+
+      var vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
+      var targetVin = nonEmpty(data.vin) ? String(data.vin) : '';
+      var primaryVehicle = null;
+
+      for (var i = 0; i < vehicles.length; i += 1) {
+        var vehicle = vehicles[i];
+        if (isObject(vehicle) && String(vehicle.vin || '') === targetVin) {
+          primaryVehicle = vehicle;
+          break;
+        }
+      }
+
+      if (!isObject(primaryVehicle)) {
+        primaryVehicle = isObject(vehicles[0]) ? vehicles[0] : {};
+      }
+
+      var vehicleInfo = isObject(data.vehicleInfo) ? data.vehicleInfo : {};
+      var gpsWrap = isObject(data.gps) ? data.gps : {};
+      var gpsInfo = isObject(gpsWrap.gpsInfo) ? gpsWrap.gpsInfo : {};
+      var gpsData = isObject(gpsInfo.data) ? gpsInfo.data : gpsInfo;
+      var realtimePoll = Array.isArray(data.realtimePoll) ? data.realtimePoll : [];
+      var gpsPoll = Array.isArray(gpsWrap.pollTrace) ? gpsWrap.pollTrace : [];
+
+      var carImageUrl = firstString([
+        pick(primaryVehicle, ['picMainUrl', 'picSetUrl']),
+        pick(primaryVehicle.cfPic, ['picMainUrl', 'picSetUrl']),
+        pick(vehicleInfo, ['picMainUrl', 'picSetUrl']),
+        pick(vehicleInfo.cfPic, ['picMainUrl', 'picSetUrl']),
+      ]);
+
+      var carName = firstString([
+        pick(primaryVehicle, ['modelName', 'outModelType', 'autoAlias']),
+        pick(vehicleInfo, ['modelName']),
+      ]) || 'BYD Vehicle';
+
+      var mileageSummary = firstDefined([
+        asNumber(pick(vehicleInfo, ['totalMileageV2'])) > 0 ? pick(vehicleInfo, ['totalMileageV2']) : '',
+        asNumber(pick(vehicleInfo, ['totalMileage'])) > 0 ? pick(vehicleInfo, ['totalMileage']) : '',
+        asNumber(pick(primaryVehicle, ['totalMileage'])) > 0 ? pick(primaryVehicle, ['totalMileage']) : '',
+      ]);
+
+      setText('generated-at', 'Generated: ' + new Date(generatedAt).toLocaleString());
+      setText('car-name', carName);
+
+      var brandName = pick(primaryVehicle, ['brandName']);
+      var plate = pick(primaryVehicle, ['autoPlate']);
+      var subtitleElement = document.getElementById('car-subtitle');
+      if (subtitleElement) {
+        var subtitleParts = [];
+        if (nonEmpty(brandName)) {
+          subtitleParts.push(escapeHtml(String(brandName)));
+        }
+        if (nonEmpty(plate)) {
+          subtitleParts.push('<span class="sensitive-value">' + escapeHtml(String(plate)) + '</span>');
+        }
+        if (targetVin) {
+          subtitleParts.push('<span class="sensitive-value">' + escapeHtml(targetVin) + '</span>');
+        }
+        subtitleElement.innerHTML = subtitleParts.length ? subtitleParts.join(' · ') : '-';
+      }
+
+      renderBadgeRow('identity-badges', [
+        ['User ID', data.userId, true],
+        ['VIN', targetVin, true],
+        ['Plate', plate, true],
+        ['Model', pick(primaryVehicle, ['modelName', 'outModelType'])],
+        ['Alias', pick(primaryVehicle, ['autoAlias'])],
+        ['Energy type', pick(primaryVehicle, ['energyType'])],
+        ['Vehicle state', pick(vehicleInfo, ['vehicleState'])],
+      ]);
+
+      var imageElement = document.getElementById('car-image');
+      var placeholderElement = document.getElementById('car-image-placeholder');
+      if (imageElement && placeholderElement) {
+        if (carImageUrl) {
+          imageElement.src = carImageUrl;
+          imageElement.style.display = 'block';
+          placeholderElement.style.display = 'none';
+        } else {
+          imageElement.style.display = 'none';
+          placeholderElement.style.display = 'grid';
+        }
+      }
+
+      var summaryMetrics = [
+        ['Online', mapOnlineState(pick(vehicleInfo, ['onlineState']))],
+        ['Connect state', pick(vehicleInfo, ['connectState'])],
+        ['Battery', formatPercent(firstDefined([
+          pick(vehicleInfo, ['elecPercent']),
+          pick(vehicleInfo, ['powerBattery']),
+        ]))],
+        ['Range', formatDistance(firstDefined([
+          pick(vehicleInfo, ['enduranceMileage']),
+          pick(vehicleInfo, ['evEndurance']),
+        ]))],
+        ['Charge state', pick(vehicleInfo, ['chargingState', 'chargeState'])],
+        ['Total power', pick(vehicleInfo, ['totalPower'])],
+        ['Inside temp', formatTemp(pick(vehicleInfo, ['tempInCar']))],
+        ['Speed', formatSpeed(pick(vehicleInfo, ['speed']))],
+        ['Mileage', formatDistance(mileageSummary)],
+        ['Realtime timestamp', formatTimestamp(pick(vehicleInfo, ['time']))],
+        ['GPS status', gpsWrap.ok ? 'ok' : (gpsWrap.message || 'unavailable')],
+        ['Realtime poll entries', realtimePoll.length],
+      ];
+      renderMetrics('summary-metrics', summaryMetrics);
+
+      var doorRows = [
+        ['Left front door', pick(vehicleInfo, ['leftFrontDoor'])],
+        ['Right front door', pick(vehicleInfo, ['rightFrontDoor'])],
+        ['Left rear door', pick(vehicleInfo, ['leftRearDoor'])],
+        ['Right rear door', pick(vehicleInfo, ['rightRearDoor'])],
+        ['Trunk lid', pick(vehicleInfo, ['trunkLid'])],
+        ['Left front lock', pick(vehicleInfo, ['leftFrontDoorLock'])],
+        ['Right front lock', pick(vehicleInfo, ['rightFrontDoorLock'])],
+        ['Left rear lock', pick(vehicleInfo, ['leftRearDoorLock'])],
+        ['Right rear lock', pick(vehicleInfo, ['rightRearDoorLock'])],
+        ['Left front window', pick(vehicleInfo, ['leftFrontWindow'])],
+        ['Right front window', pick(vehicleInfo, ['rightFrontWindow'])],
+        ['Left rear window', pick(vehicleInfo, ['leftRearWindow'])],
+        ['Right rear window', pick(vehicleInfo, ['rightRearWindow'])],
+        ['Skylight', pick(vehicleInfo, ['skylight'])],
+      ];
+      renderRows('doors-content', doorRows);
+
+      var chargeHour = pick(vehicleInfo, ['remainingHours']);
+      var chargeMinute = pick(vehicleInfo, ['remainingMinutes']);
+      var chargeEta = '';
+      if (nonEmpty(chargeHour) || nonEmpty(chargeMinute)) {
+        chargeEta = String(nonEmpty(chargeHour) ? chargeHour : '0') + 'h ' + String(nonEmpty(chargeMinute) ? chargeMinute : '0') + 'm';
+      }
+
+      var tireRows = [
+        ['Left front tire', pick(vehicleInfo, ['leftFrontTirepressure'])],
+        ['Right front tire', pick(vehicleInfo, ['rightFrontTirepressure'])],
+        ['Left rear tire', pick(vehicleInfo, ['leftRearTirepressure'])],
+        ['Right rear tire', pick(vehicleInfo, ['rightRearTirepressure'])],
+        ['Tire unit code', pick(vehicleInfo, ['tirePressUnit'])],
+        ['Total energy', pick(vehicleInfo, ['totalEnergy'])],
+        ['Nearest consumption', pick(vehicleInfo, ['nearestEnergyConsumption'])],
+        ['Recent 50km energy', pick(vehicleInfo, ['recent50kmEnergy'])],
+        ['Charge ETA', chargeEta],
+      ];
+      renderRows('tires-content', tireRows);
+
+      var gpsTimeValue = firstDefined([
+        pick(gpsData, ['gpsTimeStamp', 'gpsTimestamp', 'gpsTime', 'time', 'uploadTime']),
+        pick(gpsInfo, ['gpsTimeStamp', 'gpsTimestamp', 'gpsTime', 'time', 'uploadTime']),
+      ]);
+      var latitudeValue = pick(gpsData, ['latitude', 'lat', 'gpsLatitude']);
+      var longitudeValue = pick(gpsData, ['longitude', 'lng', 'lon', 'gpsLongitude']);
+      var latitudeDisplay = nonEmpty(latitudeValue) ? String(latitudeValue) : '';
+      var longitudeDisplay = nonEmpty(longitudeValue) ? String(longitudeValue) : '';
+      var gpsRows = [
+        ['Latitude', latitudeDisplay, true],
+        ['Longitude', longitudeDisplay, true],
+        ['Direction', pick(gpsData, ['direction', 'heading', 'course'])],
+        ['GPS speed', formatSpeed(pick(gpsData, ['speed', 'gpsSpeed']))],
+        ['GPS time', formatTimestamp(gpsTimeValue)],
+        ['GPS result', firstDefined([pick(gpsInfo, ['res']), gpsWrap.message])],
+        ['GPS polls', gpsPoll.length],
+      ];
+      renderRows('gps-content', gpsRows);
+
+      var sensitiveMaskEnabled = false;
+      var sensitivityToggle = document.getElementById('sensitivity-toggle');
+      function applySensitiveMask() {
+        document.body.classList.toggle('mask-sensitive', sensitiveMaskEnabled);
+        if (!sensitivityToggle) {
+          return;
+        }
+        sensitivityToggle.setAttribute('aria-pressed', sensitiveMaskEnabled ? 'true' : 'false');
+        sensitivityToggle.title = sensitiveMaskEnabled ? 'Show sensitive values' : 'Blur sensitive values';
+      }
+      if (sensitivityToggle) {
+        sensitivityToggle.addEventListener('click', function () {
+          sensitiveMaskEnabled = !sensitiveMaskEnabled;
+          applySensitiveMask();
+        });
+      }
+      applySensitiveMask();
+
+      var rawOutput = document.getElementById('raw-output');
+      if (rawOutput) {
+        rawOutput.textContent = stringifyPretty(data);
+      }
+      var rawVehicle = document.getElementById('raw-vehicle');
+      if (rawVehicle) {
+        rawVehicle.textContent = stringifyPretty(vehicleInfo);
+      }
+      var rawGps = document.getElementById('raw-gps');
+      if (rawGps) {
+        rawGps.textContent = stringifyPretty(gpsInfo);
+      }
+    }());
+  </script>
+</body>
+</html>
+`;
+}
+
+function writeStatusHtml(output, filePath = 'status.html') {
+  const html = buildStatusHtml(output);
+  fs.writeFileSync(filePath, html, 'utf8');
+}
+
 async function main() {
   if (!CONFIG.username || !CONFIG.password) {
     throw new Error('Set BYD_USERNAME and BYD_PASSWORD');
@@ -672,6 +1504,9 @@ async function main() {
     vehicleInfo,
     gps: gpsResult,
   };
+
+  writeStatusHtml(output, 'status.html');
+  stepLog('Wrote status HTML', { file: 'status.html' });
 
   console.log(util.inspect(JSON.parse(JSON.stringify(output)), {
     depth: null,
