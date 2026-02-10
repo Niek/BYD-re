@@ -69,7 +69,7 @@ Every BYD app call in this repo uses two crypto layers:
 - Envelope format is `F` + Base64 ciphertext.
 - Ciphertext is table-driven Bangcle white-box AES flow using embedded auth tables from `bangcle_auth_tables.js`.
 - Mode is CBC with zero IV and PKCS#7 padding.
-- Decoding strips optional `F`/`S` prefix, Base64-decodes, decrypts, and removes PKCS#7.
+- Decoding requires and strips the `F` prefix, Base64-decodes, decrypts, and removes PKCS#7.
 
 3. Inner business payload layer (`encryData` / `respondData`)
 - Fields are uppercase hex AES-128-CBC (zero IV).
@@ -142,7 +142,7 @@ node decompile.js http-dec '<payload>'
 ```
 
 Accepted input:
-- raw envelope text (Base64-like, optional `F`/`S` prefix)
+- raw envelope text (Base64-like, must be `F`-prefixed)
 - full JSON body such as `{"request":"..."}` or `{"response":"..."}`
 - raw inner hex ciphertext
 

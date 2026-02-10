@@ -338,9 +338,10 @@ function normaliseCheckcodeInput(input) {
   if (!cleaned.length) {
     throw new Error('Bangcle input is empty');
   }
-  if ((cleaned.startsWith('F') || cleaned.startsWith('S')) && cleaned.length > 1) {
-    cleaned = cleaned.slice(1);
+  if (!cleaned.startsWith('F')) {
+    throw new Error('Bangcle envelope must start with "F"');
   }
+  cleaned = cleaned.slice(1);
   const remainder = cleaned.length % 4;
   if (remainder !== 0) {
     cleaned = `${cleaned}${'='.repeat(4 - remainder)}`;
