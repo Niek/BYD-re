@@ -1,9 +1,14 @@
 com.byd.bydautolink*
+.env
 *.apk
 class*
 dumps.txt
 main.go
-decompile.js
+#decompile.js
+apk/
 decodePayload.js
 byd-api-crypto.js
-samples/
+#samples/
+AGENTS.md
+.codex/
+byd/*

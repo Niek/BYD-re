@@ -11,11 +11,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LOG_PATH="${1:-${SCRIPT_DIR}/samples/raw_hooks.log}"
+STATE_FILE="${TMPDIR:-/tmp}/byd-http-dec-state-$$.json"
 
 if [[ ! -f "$LOG_PATH" ]]; then
   echo "Missing log file: $LOG_PATH" >&2
   exit 1
 fi
+
+trap 'rm -f "$STATE_FILE"' EXIT
 
 extract_http_calls() {
   grep "HTTP method=" "$LOG_PATH" \
@@ -42,7 +45,7 @@ decode_payload() {
     echo "(empty)"
     return
   fi
-  node "${ROOT_DIR}/decompile.js" http-dec "$payload"
+  BYD_DECODE_STATE_FILE="$STATE_FILE" node "${ROOT_DIR}/decompile.js" http-dec "$payload"
 }
 
 found=0
@@ -60,4 +63,3 @@ if [[ $found -eq 0 ]]; then
   echo "No HTTP method entries found in $LOG_PATH" >&2
   exit 1
 fi
-

@@ -1,98 +1,210 @@
-# BYD App Reverse Engineering Notes
+# BYD Reverse Engineering
 
-This repository has some notes on reverse engineering the BYD overseas (international) mobile car app, [`com.byd.bydautolink`](https://play.google.com/store/apps/details?id=com.byd.bydautolink). The app is used to monitor and control BYD electric vehicles remotely. Unfortunately BYD has no public API documentation, and the app's network traffic is obfuscated/encrypted, so these notes document some of the findings so far.
+Working reverse of the BYD app HTTP crypto path for the pinned APK build.
 
-All calls target the same host, `https://dilinkappoversea-eu.byd.auto`, and were sent over HTTP/2 from an Android client (`okhttp/4.12.0`). There is some additional MQTT traffic going to `mqtts://dilinkpush-eu.byd.auto:8443`, but this has not been analyzed yet.
+Base host: `https://dilinkappoversea-eu.byd.auto`
 
-## Observed Endpoints
-- `/app/account/login` — initial authentication call that returns a `JSESSIONID` cookie.
-- `/app/config/getAllBrandCommonConfig` — pulls brand-level configuration after login.
-- `/vehicleInfo/vehicle/vehicleRealTimeRequest` — appears to fetch vehicle telemetry; also yields a fresh `JSESSIONID`.
-- `/control/getStatusNow` — likely queries current control/lock/etc state.
-- `/app/banner/getCountryBannerConfig` — retrieves localized marketing banner in the app.
+## App & Transport Snapshot
 
-See more endpoints here: https://github.com/jkaberg/byd-react-app-reverse/issues/1
+- App: BYD overseas Android app (`com.byd.bydautolink`).
+- Primary API host: `https://dilinkappoversea-eu.byd.auto`.
+- Client stack: Android + OkHttp (`user-agent: okhttp/4.12.0`).
+- API pattern: JSON-over-HTTP POST with encrypted payload wrapper.
 
-## HTTP Request / Response Details
-- All captures are `POST` requests using HTTP/2 with `content-type: application/json; charset=UTF-8`. The endpoint does not seem to support HTTP/1.1.
-- The client explicitly forces `accept-encoding: identity`, so responses are uncompressed despite the HTTP/2 transport.
-- `user-agent` is consistently `okhttp/4.12.0`, confirming native Android networking.
-- Responses include `via: 1.1 google`, suggesting the services sit behind Google Cloud load balancing.
-- Authentication appears session-based: successful calls return `Set-Cookie: JSESSIONID=...; path=/`, which subsequent requests can reuse successfully.
+Common request characteristics observed in hooks and mirrored by `client.js`:
+- `content-type: application/json; charset=UTF-8`
+- `accept-encoding: identity`
+- `user-agent: okhttp/4.12.0`
+- cookie-backed session reuse across calls (client stores and replays returned cookies)
 
-## Payload Format
-- Each request body is a single-field JSON object: `{"request": "<long token>"}`; responses mirror this with `{"response": "<token>"}`.
-- Tokens only contain URL-safe Base64 characters but their lengths are `4n+1`, so they fail standard Base64 decoding even after padding; the data is likely encrypted or encoded with a custom alphabet.
-- The repeated structure hints at an encryption/obfuscation layer (probably AES + custom Base64) applied before the payload is sent over TLS.
+## HTTP Envelope & Payload Shape
 
-## Client-Side Encryption Clues
-- The APK is SecNeo/Bangcle-protected; the visible `classes.dex` is a bootstrap that loads encrypted code from `libdatajar.so`.
-- `dex2jar` confirms that `com/wbsk/CryptoTool` has no implementation in `class.dex`. Only the method table is present: both `laesEncryptStringWithBase64` and `laesDecryptStringWithBase64` have signature `(Ljava/lang/String;Ljava/lang/String;[B)Ljava/lang/String;`, but the third byte-array argument is always passed as `null` from the smali stubs.
-- Native library `libwbsk_crypto_tool.so` exposes the JNI entry points (`Java_com_wbsk_CryptoTool_laesEncryptStringWithBase64`, `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64`, etc.). These functions consume the white-box tables exposed by `jniutil/JniUtil` and execute the actual AES rounds.
-- `libencrypt.so` and `libwbsk_crypto_tool.so` reference `CSecFunctProvider::AES128_EncryptCBC`, `AES_EncryptOneBlock`, and white-box tables (`WBACRAES_*`), confirming the app uses a white-box **AES-128** implementation (ECB/CBC helpers present) prior to Base64 encoding.
-- The `JniUtil` native stub returns literal hex blobs for `getPriKey()`, `getPubKey()`, and “new” key variants. These strings are 512 hex chars (256 bytes) and should be passed untouched to the JNI layer; they are not raw AES keys but white-box key tables. Additional helpers (`getUrlEncrypt()`, `getSecondHandCarKey()`, etc.) expose other static secrets used by ancillary modules.
-- Because the white-box logic lives in native code, reimplementing the transport encryption requires calling into `libwbsk_crypto_tool.so` (e.g., loading the `.so` and invoking `Java_com_wbsk_CryptoTool_laesDecryptStringWithBase64`) or instrumenting the running app to capture plaintext at the JNI boundary—simple key derivation from the dumped hex strings is insufficient. Hooking `com.wbsk.CryptoTool` at runtime confirms that the white-box tables work as expected when paired with the corresponding `getPriKey()` / `getPubKey()` material.
+All API calls use an outer wrapper:
 
-## Replay Check
-- Replaying `/app/config/getAllBrandCommonConfig` with a captured `JSESSIONID` and the original `request` blob succeeds; the server returns a structured `{"response": "...<ciphertext>..."}` payload rather than rejecting the session.
-- Sample command:
-  ```bash
-  curl --http2-prior-knowledge \
-    'https://dilinkappoversea-eu.byd.auto/app/config/getAllBrandCommonConfig' \
-    -H 'content-type: application/json; charset=UTF-8' \
-    -H 'accept-encoding: identity' \
-    -H 'user-agent: okhttp/4.12.0' \
-    -H 'cookie: JSESSIONID=<captured-session-id>' \
-    --data-raw '{"request":"<captured-request-blob>"}'
-  ```
-- The replayed response remains encrypted/encoded, so deeper decoding still hinges on uncovering the client-side codec.
-
-## Xposed Module
-
-An LSPosed/Xposed module (`xposed/`) hooks the Java `com.wbsk.CryptoTool` wrappers to log plaintext, ciphertext, and the associated white-box hex material during live app usage.
-
-### Building the module
-
-```
-cd xposed
-# Ensure the Android SDK path is configured (either via ANDROID_HOME or local.properties)
-./gradlew assembleRelease
+```json
+{ "request": "<F-prefixed Bangcle envelope>" }
 ```
 
-The built APK will be located under `xposed/build/outputs/apk/release/`.
+Server responses mirror the structure:
 
-### Deploying to a test device
-
-```
-adb install -r xposed/build/outputs/apk/release/xposed-release.apk
+```json
+{ "response": "<F-prefixed Bangcle envelope>" }
 ```
 
-After installation, enable the module inside LSPosed Manager and scope it to the `com.byd.bydautolink` app. Reboot if LSPosed requests it.
+After Bangcle envelope decode, the outer JSON payload typically looks like:
 
-### Gathering logs
-
+```json
+{
+  "countryCode": "NL",
+  "identifier": "<username-or-userId>",
+  "imeiMD5": "<md5-hex>",
+  "language": "en",
+  "reqTimestamp": "<millis>",
+  "sign": "<sha1Mixed>",
+  "encryData": "<AES-CBC hex>",
+  "checkcode": "<md5-reordered>"
+}
 ```
-adb logcat -s BYD-Xposed
+
+Response-side decoded outer payload usually includes:
+
+```json
+{
+  "code": "0",
+  "message": "SUCCESS",
+  "identifier": "<userId-or-countryCode>",
+  "respondData": "<AES-CBC hex>"
+}
 ```
 
-Log lines include the plaintext/ciphertext pairs and the 512-character key blobs needed for the white-box analysis.
+## Crypto Pipeline (How Encryption Works)
 
-## JRuby/JNI Experiment: Not Viable
-We experimented with loading `libwbsk_crypto_tool.so` from a regular Linux environment (via Go + cgo) to call the JNI exports directly. This path dead-ends:
+Every BYD app call in this repo uses two crypto layers:
 
-- The shared object pulls in Android-specific dependencies (`liblog.so`, `libart.so`, etc.). Without bundling the entire Android runtime or providing symbol-compatible stubs, `dlopen` fails.
-- Even if those dependencies were satisfied, the exports expect a real `JNIEnv*` and associated Dalvik data structures; providing them outside Android requires reimplementing large parts of the VM.
+1. HTTP wrapper
+- Request body is JSON: `{"request":"<envelope>"}`.
+- Response body is JSON: `{"response":"<envelope>"}`.
 
-Conclusion: invoking the library natively is only practical inside an actual Android environment (or with Frida/Xposed instrumentation).
+2. Bangcle envelope layer (`bangcle.js`)
+- Envelope format is `F` + Base64 ciphertext.
+- Ciphertext is table-driven Bangcle white-box AES flow using embedded auth tables from `bangcle_auth_tables.js`.
+- Mode is CBC with zero IV and PKCS#7 padding.
+- Decoding strips optional `F`/`S` prefix, Base64-decodes, decrypts, and removes PKCS#7.
 
-## Current Reverse-Engineering Strategy
-Given the JNI approach is impractical on desktop Linux/macOS, we focus on reimplementing the transport encryption by studying the decompiled native code (`libwbsk_crypto_tool.so.c`, included in this repo).
+3. Inner business payload layer (`encryData` / `respondData`)
+- Fields are uppercase hex AES-128-CBC (zero IV).
+- Login (`pwdLogin`) inner payload uses static `TRANSPORT_KEY`.
+- Post-login payloads use token-derived keys from `respondData.token`:
+  - content key: `MD5(encryToken)` (for `encryData` / `respondData`)
+  - sign key: `MD5(signToken)` (for `sign`)
 
-### High-Level Flow
-1. **Xposed hook** (`xposed/` module) logs the plaintext, ciphertext, and the 512-character white-box hex blobs (`JniUtil.getPriKey()` / `getPubKey()`). Representative captures are kept private because they contain sensitive user data.
-2. **Blob decode** (`FUN_00101888`): strip the 4-byte header, XOR-unmask the blob, determine mode/direction flags.
-3. **Table expansion** (`wbsk_skb_decrypt` → `wbsk_internal_crypto`): chunk the decoded blob into lookup tables (`LAES_encrypt_te*`, `LAES_encrypt_xor*`, etc.) that encode both the AES round keys and the affine encodings of the white-box.
-4. **White-box AES rounds** (`wbsk_WB_LAES_encrypt` / `wbsk_WB_LAES_decrypt`): process each 16-byte block through 10+ rounds of nibble-mixing with the tables above.
-5. **CBC + PKCS#7** (`wbsk_CRYPTO_cbc128_*` + JNI wrapper): wrap the block cipher in standard AES-128-CBC with zero IV (when `null`), apply padding, Base64 encode the result.
+4. Signature and checkcode fields
+- Login sign key input is raw password; sign uses `sha1Mixed(buildSignString(..., md5(password)))`.
+- Post-login sign uses token-derived sign key.
+- `checkcode` is computed from `MD5(JSON.stringify(outerPayload))` with reordered chunks:
+  - `[24:32] + [8:16] + [16:24] + [0:8]`
 
-These notes should serve as a starting point for deeper protocol analysis and automation tooling.
+## Use This First: Minimal Client
+
+`client.js` is the main entrypoint (most useful path).
+
+Create `.env`:
+
+```dotenv
+BYD_USERNAME=you@example.com
+BYD_PASSWORD=your-password
+```
+
+Run:
+
+```bash
+node client.js
+```
+
+Current client flow:
+- `/app/account/login`
+- `/app/account/getAllListByUserId`
+- `/vehicleInfo/vehicle/vehicleRealTimeRequest` (single trigger)
+- `/vehicleInfo/vehicle/vehicleRealTimeResult` (poll until populated)
+- `/control/getGpsInfo` (single trigger)
+- `/control/getGpsInfoResult` (poll until populated)
+
+Optional `BYD_*` overrides:
+- `BYD_COUNTRY_CODE`
+- `BYD_LANGUAGE`
+- `BYD_VIN`
+- `BYD_IMEI_MD5`
+- `BYD_APP_VERSION`
+- `BYD_APP_INNER_VERSION`
+- `BYD_OS_TYPE`
+- `BYD_OS_VERSION`
+- `BYD_TIME_ZONE`
+- `BYD_DEVICE_TYPE`
+- `BYD_NETWORK_TYPE`
+- `BYD_MOBILE_BRAND`
+- `BYD_MOBILE_MODEL`
+- `BYD_SOFT_TYPE`
+- `BYD_TBOX_VERSION`
+- `BYD_IS_AUTO`
+- `BYD_OSTYPE`
+- `BYD_IMEI`
+- `BYD_MAC`
+- `BYD_MODEL`
+- `BYD_SDK`
+- `BYD_MOD`
+
+## Debugging / Offline Decode (`decompile.js`)
+
+Decode one payload:
+
+```bash
+node decompile.js http-dec '<payload>'
+```
+
+Accepted input:
+- raw envelope text (Base64-like, optional `F`/`S` prefix)
+- full JSON body such as `{"request":"..."}` or `{"response":"..."}`
+- raw inner hex ciphertext
+
+Common options:
+
+```bash
+node decompile.js http-dec '<payload>' --debug
+node decompile.js http-dec '<payload>' --identifier <id>
+node decompile.js http-dec '<payload>' --key <32-hex>
+node decompile.js http-dec '<payload>' --state-file /tmp/byd_state.json
+```
+
+Encrypt inner JSON with `md5(identifier)` key:
+
+```bash
+node decompile.js http-enc '{"k":"v"}' --identifier <id>
+```
+
+Decode full hook flow:
+
+```bash
+./xposed/http.sh xposed/samples/raw_hooks.log
+```
+
+`xposed/http.sh` creates a temporary per-run decode-state file so keys learned from login are reused for later calls in the same flow.
+
+## Decoder Key Strategy
+
+`http-dec` inner-field decryption order:
+1. static AES keys (`CONFIG_KEY`, `TRANSPORT_KEY`)
+2. explicit `--key`
+3. learned state keys
+4. `md5(identifier)` when identifier is known
+
+State behavior:
+- default file: `/tmp/byd_http_dec_state.json`
+- override: `BYD_DECODE_STATE_FILE` or `--state-file`
+- auto-learns `contentKey = MD5(token.encryToken)` from decoded login `respondData`
+
+## Bangcle Tables
+
+Runtime uses embedded tables only.
+
+- `bangcle.js` does not read `.so` files at runtime.
+- `bangcle_auth_tables.js` is generated from `byd/libencrypt.so.mem.so`:
+
+```bash
+node scripts/generate_bangcle_auth_tables.js
+```
+
+## Project Map
+
+- `client.js`: minimal login + vehicle list + realtime poll + GPS client.
+- `decompile.js`: decoder/encoder CLI (debugging/analysis).
+- `bangcle.js`: Bangcle envelope encode/decode implementation.
+- `bangcle_auth_tables.js`: embedded Bangcle auth tables.
+- `URLs.md`: discovered API URL inventory (observed in logs + static `class.dex` candidates).
+- `scripts/generate_bangcle_auth_tables.js`: table generator.
+- `xposed/http.sh`: decode helper for `HTTP method=` log lines.
+- `xposed/src/*`: Xposed hook module source (Java hooks, resources, manifest).
+
+## Security
+
+Do not commit real credentials, raw personal logs, or decrypted personal data.
+`xposed/samples/raw_hooks.log` can contain plaintext identifiers and passwords.
