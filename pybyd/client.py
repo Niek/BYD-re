@@ -9,7 +9,7 @@ import secrets
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import aiohttp
 from cryptography.hazmat.primitives import padding
@@ -186,7 +186,15 @@ class BydClient:
             payload["energyType"] = "0"
             payload["tboxVersion"] = self._config.tbox_version
 
-        data = await self._poll_data(request_endpoint, result_endpoint, payload, poll_attempts, poll_interval)
+        ready_check = self._is_gps_ready if gps else self._is_realtime_ready
+        data = await self._poll_data(
+            request_endpoint,
+            result_endpoint,
+            payload,
+            poll_attempts,
+            poll_interval,
+            ready_check=ready_check,
+        )
 
         if gps:
             src = data.get("data") if isinstance(data.get("data"), dict) else data
@@ -214,9 +222,12 @@ class BydClient:
         payload: dict[str, Any],
         poll_attempts: int,
         poll_interval: float,
+        *,
+        ready_check: Callable[[dict[str, Any]], bool] | None = None,
     ) -> dict[str, Any]:
+        is_ready = ready_check or self._is_ready
         first = await self._fetch_payload(request_endpoint, payload)
-        if self._is_ready(first):
+        if is_ready(first):
             return first
         serial = first.get("requestSerial")
         latest = first
@@ -228,9 +239,45 @@ class BydClient:
             poll_payload["requestSerial"] = serial
             latest = await self._fetch_payload(result_endpoint, poll_payload)
             serial = latest.get("requestSerial") or serial
-            if self._is_ready(latest):
+            if is_ready(latest):
                 return latest
         return latest
+
+    @staticmethod
+    def _is_realtime_ready(payload: dict[str, Any]) -> bool:
+        if not payload or not isinstance(payload, dict):
+            return False
+        if set(payload.keys()) == {"requestSerial"}:
+            return False
+        online_state = BydClient._to_float(payload.get("onlineState"))
+        if online_state == 2:
+            return False
+
+        tire_fields = (
+            "leftFrontTirepressure",
+            "rightFrontTirepressure",
+            "leftRearTirepressure",
+            "rightRearTirepressure",
+        )
+        for field in tire_fields:
+            pressure = BydClient._to_float(payload.get(field))
+            if pressure is not None and pressure > 0:
+                return True
+
+        if (BydClient._to_float(payload.get("time")) or 0) > 0:
+            return True
+        if (BydClient._to_float(payload.get("enduranceMileage")) or 0) > 0:
+            return True
+        return False
+
+    @staticmethod
+    def _is_gps_ready(payload: dict[str, Any]) -> bool:
+        if not payload or not isinstance(payload, dict):
+            return False
+        keys = list(payload.keys())
+        if not keys:
+            return False
+        return not (len(keys) == 1 and keys[0] == "requestSerial")
 
     async def _fetch_payload(self, endpoint: str, inner_payload: dict[str, Any]) -> dict[str, Any]:
         outer, key = self._build_token_envelope(inner_payload)
@@ -437,4 +484,3 @@ class BydClient:
     @classmethod
     def _bangcle_decode(cls, envelope: str) -> str:
         return decode_envelope(envelope).decode("utf-8")
-
