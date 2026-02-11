@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -18,6 +19,8 @@ from .const import (
     DOMAIN,
 )
 
+LOGGER = logging.getLogger(__name__)
+
 
 class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for BYD."""
@@ -31,6 +34,14 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             region = user_input[CONF_SERVER_REGION].strip()
             base_url = f"https://dilinkappoversea{region}.byd.auto"
 
+            LOGGER.debug(
+                "Starting config flow validation for user=%s region=%s base_url=%s country_code=%s",
+                user_input[CONF_USERNAME],
+                region,
+                base_url,
+                user_input[CONF_COUNTRY_CODE],
+            )
+
             config = BydConfig(
                 username=user_input[CONF_USERNAME],
                 password=user_input[CONF_PASSWORD],
@@ -40,12 +51,27 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 async with BydClient(config) as client:
+                    LOGGER.debug("Attempting BYD login during config flow")
                     await client.login()
+                    LOGGER.debug("BYD login successful during config flow")
             except Exception:
+                LOGGER.exception(
+                    "BYD login failed during config flow for user=%s region=%s base_url=%s",
+                    user_input[CONF_USERNAME],
+                    region,
+                    base_url,
+                )
                 errors["base"] = "cannot_connect"
             else:
-                await self.async_set_unique_id(f"{user_input[CONF_USERNAME]}:{base_url}")
+                await self.async_set_unique_id(
+                    f"{user_input[CONF_USERNAME]}:{base_url}"
+                )
                 self._abort_if_unique_id_configured()
+                LOGGER.debug(
+                    "Creating config entry for user=%s base_url=%s",
+                    user_input[CONF_USERNAME],
+                    base_url,
+                )
                 return self.async_create_entry(
                     title=f"BYD ({user_input[CONF_USERNAME]})",
                     data={
@@ -65,5 +91,8 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_SERVER_REGION, default=DEFAULT_SERVER_REGION): str,
             }
         )
+
+        if errors:
+            LOGGER.debug("Config flow returning form with errors: %s", errors)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
