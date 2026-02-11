@@ -23,7 +23,9 @@ class BydClimate(BydEntity, ClimateEntity):
 
     _attr_name = "Climate"
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL]
-    _attr_supported_features = 0
+    # Home Assistant's climate capability handling expects an iterable of
+    # ClimateEntityFeature values (even when empty).
+    _attr_supported_features: tuple = ()
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
     def __init__(self, coordinator) -> None:
