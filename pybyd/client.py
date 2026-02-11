@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import hashlib
 import json
 import secrets
-import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +18,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from .config import BydConfig
 from .exceptions import BydApiError, BydAuthenticationError, BydError, BydRemoteControlError
 from .models import AuthToken, GpsInfo, RemoteCommand, RemoteControlResult, Vehicle, VehicleRealtimeData
+from .bangcle import decode_envelope, encode_envelope
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -431,27 +430,11 @@ class BydClient:
         plain = unpadder.update(padded) + unpadder.finalize()
         return plain.decode("utf-8")
 
-    @staticmethod
-    def _run_node(js_code: str) -> str:
-        proc = subprocess.run(["node", "-e", js_code], capture_output=True, text=True, check=True, cwd=str(_REPO_ROOT))
-        return proc.stdout.strip()
-
     @classmethod
     def _bangcle_encode(cls, plaintext: str) -> str:
-        b64 = base64.b64encode(plaintext.encode("utf-8")).decode("ascii")
-        script = (
-            "const bangcle=require('./bangcle');"
-            f"const txt=Buffer.from('{b64}','base64').toString('utf8');"
-            "process.stdout.write(bangcle.encodeEnvelope(txt));"
-        )
-        return cls._run_node(script)
+        return encode_envelope(plaintext)
 
     @classmethod
     def _bangcle_decode(cls, envelope: str) -> str:
-        b64 = base64.b64encode(envelope.encode("utf-8")).decode("ascii")
-        script = (
-            "const bangcle=require('./bangcle');"
-            f"const env=Buffer.from('{b64}','base64').toString('utf8');"
-            "process.stdout.write(bangcle.decodeEnvelope(env).toString('utf8'));"
-        )
-        return cls._run_node(script)
+        return decode_envelope(envelope).decode("utf-8")
+
