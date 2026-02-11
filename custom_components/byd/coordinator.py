@@ -11,7 +11,7 @@ from typing import Any
 from aiohttp import ClientSession
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from .pybyd import BydClient, BydConfig
+from .pybyd import BydApiError, BydClient, BydConfig, GpsInfo
 
 from .const import DEFAULT_SCAN_INTERVAL
 
@@ -121,12 +121,36 @@ class BydDataCoordinator(DataUpdateCoordinator[BydSnapshot]):
             )
 
             self._logger.debug("Requesting GPS payload for VIN=%s", vehicle.vin)
-            gps = await self.client.get_gps_info(vehicle.vin)
-            self._logger.debug(
-                "BYD GPS payload for VIN=%s: %s",
-                vehicle.vin,
-                _safe_repr(_raw_payload(gps)),
-            )
+            try:
+                gps = await self.client.get_gps_info(vehicle.vin)
+                self._logger.debug(
+                    "BYD GPS payload for VIN=%s: %s",
+                    vehicle.vin,
+                    _safe_repr(_raw_payload(gps)),
+                )
+            except BydApiError as err:
+                previous_gps = self.data.gps if self.data and self.data.gps else None
+                if previous_gps:
+                    self._logger.warning(
+                        "BYD GPS refresh failed for VIN=%s; reusing previous GPS data: %s",
+                        vehicle.vin,
+                        err,
+                    )
+                    gps = previous_gps
+                else:
+                    self._logger.warning(
+                        "BYD GPS refresh failed for VIN=%s; using empty GPS data: %s",
+                        vehicle.vin,
+                        err,
+                    )
+                    gps = GpsInfo(
+                        latitude=None,
+                        longitude=None,
+                        speed=None,
+                        direction=None,
+                        gps_timestamp=None,
+                        raw={},
+                    )
 
             snapshot = BydSnapshot(
                 vin=vehicle.vin, vehicle=vehicle, realtime=realtime, gps=gps
