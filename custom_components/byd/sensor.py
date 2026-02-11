@@ -53,9 +53,11 @@ class BydSensor(BydEntity, SensorEntity):
         rt = self.coordinator.data.realtime
         raw = self.coordinator.realtime_raw()
         if self.entity_description.key == "battery":
-            return rt.elec_percent
+            value = rt.elec_percent
+            return None if value is None else round(float(value))
         if self.entity_description.key == "range":
-            return rt.endurance_mileage
+            value = rt.endurance_mileage
+            return None if value is None else round(float(value))
         if self.entity_description.key == "inside_temperature":
             value = raw.get("tempInCar")
             if value is None:
