@@ -17,7 +17,6 @@ try {
 
 const BASE_URL = 'https://dilinkappoversea-eu.byd.auto';
 const USER_AGENT = 'okhttp/4.12.0';
-const TRANSPORT_KEY = '9F29BE3E6254AF2C354F265B17C0CDD3';
 
 // Username/password are expected from environment or .env. Optional BYD_* overrides can also be placed in .env.
 const CONFIG = Object.freeze({
@@ -53,6 +52,10 @@ const cookieJar = new Map();
 
 function md5Hex(value) {
   return crypto.createHash('md5').update(value, 'utf8').digest('hex').toUpperCase();
+}
+
+function pwdLoginKey(password) {
+  return md5Hex(md5Hex(password));
 }
 
 function sha1Mixed(value) {
@@ -251,7 +254,7 @@ function buildLoginRequest(nowMs) {
     timeZone: CONFIG.timeZone,
   };
 
-  const encryData = aesEncryptHex(JSON.stringify(inner), TRANSPORT_KEY);
+  const encryData = aesEncryptHex(JSON.stringify(inner), pwdLoginKey(CONFIG.password));
 
   const signFields = {
     ...inner,
@@ -1430,7 +1433,8 @@ async function main() {
     throw new Error(`Login failed: code=${loginOuter.code} message=${loginOuter.message || ''}`.trim());
   }
 
-  const loginInner = decryptRespondDataJson(loginOuter.respondData, TRANSPORT_KEY);
+  const loginKey = pwdLoginKey(CONFIG.password);
+  const loginInner = decryptRespondDataJson(loginOuter.respondData, loginKey);
   const token = loginInner && loginInner.token ? loginInner.token : null;
   const userId = token && token.userId ? String(token.userId) : '';
   const signToken = token && token.signToken ? String(token.signToken) : '';
