@@ -6,7 +6,8 @@ import base64
 import re
 import struct
 from functools import lru_cache
-from pathlib import Path
+
+from .bangcle_auth_tables import AUTH_TABLES
 
 _TABLE_SPECS: dict[str, int] = {
     "invRound": 0x28000,
@@ -20,32 +21,16 @@ _TABLE_SPECS: dict[str, int] = {
 }
 
 _ZERO_IV = bytes(16)
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-
-
-def _find_tables_source() -> Path:
-    direct = _REPO_ROOT / "bangcle_auth_tables.js"
-    if direct.exists():
-        return direct
-    alt = _REPO_ROOT / "custom_components" / "byd" / "bangcle_auth_tables.js"
-    if alt.exists():
-        return alt
-    raise RuntimeError("bangcle_auth_tables.js not found")
 
 
 @lru_cache(maxsize=1)
 def _load_tables() -> dict[str, bytes]:
-    text = _find_tables_source().read_text(encoding="utf-8")
-    found: dict[str, str] = {
-        m.group("name"): m.group("value")
-        for m in re.finditer(r'"(?P<name>[A-Za-z0-9_]+)"\s*:\s*"(?P<value>[A-Za-z0-9+/=]+)"', text)
-    }
-
     tables: dict[str, bytes] = {}
     for name, expected_len in _TABLE_SPECS.items():
-        if name not in found:
+        encoded = AUTH_TABLES.get(name)
+        if not isinstance(encoded, str) or not encoded:
             raise RuntimeError(f"Missing embedded auth table: {name}")
-        raw = base64.b64decode(found[name])
+        raw = base64.b64decode(encoded)
         if len(raw) != expected_len:
             raise RuntimeError(
                 f"Embedded auth table {name} has unexpected size {len(raw)} (expected {expected_len})"
