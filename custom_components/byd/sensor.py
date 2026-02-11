@@ -12,7 +12,7 @@ from .const import DOMAIN
 from .entity import BydEntity
 
 SENSORS = [
-    SensorEntityDescription(key="battery", name="Battery", native_unit_of_measurement=PERCENTAGE),
+    SensorEntityDescription(key="battery", name="Battery", native_unit_of_measurement=PERCENTAGE, device_class=SensorDeviceClass.BATTERY),
     SensorEntityDescription(key="range", name="Range", native_unit_of_measurement=UnitOfLength.KILOMETERS),
     SensorEntityDescription(
         key="inside_temperature",

@@ -9,8 +9,7 @@ PLATFORMS = [
     "cover",
     "climate",
     "switch",
-    "siren",
-    "light",
+    "button",
 ]
 
 CONF_COUNTRY_CODE = "country_code"
@@ -20,6 +19,6 @@ CONF_VIN = "vin"
 
 DEFAULT_COUNTRY_CODE = "NL"
 DEFAULT_SERVER_REGION = "-eu"
-DEFAULT_SCAN_INTERVAL = 60
+DEFAULT_SCAN_INTERVAL = 60 * 60
 
 ATTR_RAW = "raw"
