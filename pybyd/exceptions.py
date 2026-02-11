@@ -15,3 +15,4 @@ class BydAuthenticationError(BydApiError):
 
 class BydRemoteControlError(BydApiError):
     """Remote command failure."""
+
