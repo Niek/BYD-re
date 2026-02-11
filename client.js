@@ -605,221 +605,355 @@ function buildStatusHtml(output) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BYD Live Status</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #eef4f7;
-      --surface: #ffffff;
-      --ink: #0f2a3b;
-      --muted: #5c7385;
-      --line: #d6e1e8;
-      --accent: #00789f;
-      --accent-soft: #e5f4fa;
-      --shadow: 0 8px 20px rgba(16, 36, 51, 0.1);
+      --bg: #ebf1f3;
+      --bg-accent: #d3e2e8;
+      --surface: rgba(255, 255, 255, 0.9);
+      --surface-strong: rgba(255, 255, 255, 0.97);
+      --ink: #0f2530;
+      --muted: #5b727e;
+      --line: #c9d8df;
+      --accent: #007da0;
+      --accent-soft: #e6f4f8;
+      --ok: #1f8c63;
+      --warn: #b57a12;
+      --bad: #b14137;
+      --neutral: #4a6778;
+      --shadow: 0 16px 36px rgba(18, 42, 55, 0.14);
     }
     * {
       box-sizing: border-box;
     }
     html,
     body {
-      height: 100%;
+      min-height: 100%;
     }
     body {
       margin: 0;
-      font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+      font-family: "Space Grotesk", "Avenir Next", "Helvetica Neue", sans-serif;
       color: var(--ink);
       background:
-        radial-gradient(circle at top left, #deedf4 0, transparent 32%),
-        radial-gradient(circle at bottom right, #f6f2df 0, transparent 30%),
-        var(--bg);
-      padding: 14px;
+        radial-gradient(circle at 12% 0, var(--bg-accent) 0, transparent 35%),
+        radial-gradient(circle at 92% 0, #efe3cc 0, transparent 30%),
+        linear-gradient(145deg, #f7fafb 0%, var(--bg) 55%, #e4edf0 100%);
+      padding: 14px 14px 20px;
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(4, 53, 77, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(4, 53, 77, 0.04) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: radial-gradient(circle at 50% 30%, #000 25%, transparent 70%);
+      opacity: 0.35;
+      z-index: 0;
     }
     .page {
-      max-width: 1400px;
+      max-width: 1460px;
       margin: 0 auto;
       display: grid;
-      gap: 12px;
+      gap: 14px;
+      position: relative;
+      z-index: 1;
+    }
+    .page > * {
+      opacity: 0;
+      transform: translateY(12px);
+      animation: reveal 420ms ease forwards;
+    }
+    .page > *:nth-child(2) { animation-delay: 70ms; }
+    .page > *:nth-child(3) { animation-delay: 120ms; }
+    .page > *:nth-child(4) { animation-delay: 170ms; }
+    .page > *:nth-child(5) { animation-delay: 220ms; }
+    .page > *:nth-child(6) { animation-delay: 270ms; }
+    .page > *:nth-child(7) { animation-delay: 320ms; }
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(4px);
+    }
+    .card-pad {
+      padding: 14px;
     }
     .topbar {
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
+      background:
+        linear-gradient(130deg, rgba(7, 130, 166, 0.1), transparent 45%),
+        var(--surface-strong);
+    }
+    .kicker {
+      margin: 0 0 6px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      font-size: 0.72rem;
+      font-weight: 700;
     }
     .topbar h1 {
       margin: 0;
-      font-size: 1.38rem;
+      font-size: 1.52rem;
       line-height: 1.1;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
     }
     .subtitle {
-      margin: 4px 0 0;
+      margin: 6px 0 0;
       color: var(--muted);
-      font-size: 0.92rem;
+      font-size: 0.89rem;
+    }
+    .topbar-right {
+      display: grid;
+      justify-items: end;
+      gap: 8px;
     }
     .generated-at {
       color: var(--muted);
       font-size: 0.86rem;
-      white-space: nowrap;
-    }
-    .topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      text-align: right;
+      max-width: 260px;
     }
     .eye-toggle {
-      border: 1px solid #c3d8e4;
-      background: #ffffff;
-      border-radius: 10px;
-      width: 36px;
-      height: 32px;
-      font-size: 1.06rem;
-      line-height: 1;
+      border: 1px solid #a9c4d2;
+      background: linear-gradient(180deg, #fefefe, #eef7fb);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 0.81rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: #13455c;
+      white-space: nowrap;
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(20, 41, 59, 0.08);
+      box-shadow: 0 4px 12px rgba(18, 53, 70, 0.15);
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
     }
     .eye-toggle:hover {
-      background: #f3f9fc;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 14px rgba(18, 53, 70, 0.17);
     }
     .eye-toggle[aria-pressed="true"] {
-      background: #e8f3f9;
-      border-color: #9ec4d8;
+      background: linear-gradient(180deg, #f0f6fa, #e2edf3);
+      border-color: #88a7b8;
+      color: #3f5764;
     }
     .sensitive-value {
       transition: filter 120ms ease;
       display: inline-block;
     }
     .mask-sensitive .sensitive-value {
-      filter: blur(0.32em);
+      filter: blur(0.35em);
       user-select: none;
+      pointer-events: none;
     }
-    .dashboard {
+    .quick-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .quick-nav a {
+      color: #0f3f56;
+      text-decoration: none;
+      border: 1px solid #c4d6df;
+      background: #f9fcfd;
+      border-radius: 999px;
+      font-size: 0.79rem;
+      padding: 6px 12px;
+      font-weight: 600;
+      transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+    .quick-nav a:hover {
+      background: #ecf5f8;
+      border-color: #98b8c8;
+      transform: translateY(-1px);
+    }
+    .status-strip {
       display: grid;
-      grid-template-columns: 1.45fr 1fr;
-      gap: 12px;
-      align-items: stretch;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
     }
-    .card {
-      background: var(--surface);
+    .status-chip {
+      border-radius: 15px;
       border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
+      padding: 10px 11px;
+      background: var(--surface-strong);
+      box-shadow: 0 8px 18px rgba(16, 38, 53, 0.1);
+      display: grid;
+      gap: 4px;
+    }
+    .status-label {
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #3f6173;
+      font-weight: 700;
+    }
+    .status-value {
+      font-size: 1rem;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+    .status-detail {
+      color: #516d7c;
+      font-size: 0.77rem;
+      line-height: 1.28;
+      min-height: 1.1em;
+    }
+    .tone-ok {
+      border-color: rgba(31, 140, 99, 0.35);
+      background: linear-gradient(150deg, rgba(217, 244, 233, 0.82), rgba(255, 255, 255, 0.95));
+    }
+    .tone-warn {
+      border-color: rgba(181, 122, 18, 0.32);
+      background: linear-gradient(150deg, rgba(251, 239, 218, 0.84), rgba(255, 255, 255, 0.95));
+    }
+    .tone-bad {
+      border-color: rgba(177, 65, 55, 0.36);
+      background: linear-gradient(150deg, rgba(253, 227, 222, 0.82), rgba(255, 255, 255, 0.95));
+    }
+    .tone-neutral {
+      border-color: rgba(74, 103, 120, 0.3);
+      background: linear-gradient(150deg, rgba(231, 240, 245, 0.86), rgba(255, 255, 255, 0.96));
+    }
+    .primary-grid {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 14px;
     }
     .hero {
       display: grid;
       grid-template-columns: 0.95fr 1.05fr;
-      min-height: 250px;
+      min-height: 290px;
       overflow: hidden;
     }
     .hero-visual {
       position: relative;
-      background: linear-gradient(150deg, #daeaf2, #f4f7f9);
+      background:
+        radial-gradient(circle at 18% 30%, rgba(24, 157, 190, 0.16), transparent 45%),
+        linear-gradient(145deg, #d8e9f0, #edf4f7);
       border-right: 1px solid var(--line);
-      min-height: 230px;
+      min-height: 260px;
     }
     .hero-visual img {
       width: 100%;
       height: 100%;
       object-fit: contain;
-      padding: 16px;
+      padding: 18px;
       display: none;
+      filter: drop-shadow(0 12px 16px rgba(15, 39, 51, 0.25));
     }
     .image-placeholder {
       position: absolute;
       inset: 0;
       display: grid;
       place-items: center;
-      color: #6f8595;
+      color: #4f6d7d;
       font-size: 0.93rem;
       text-align: center;
-      padding: 18px;
+      padding: 24px;
     }
     .hero-content {
-      padding: 16px;
+      padding: 16px 16px 15px;
       display: grid;
-      gap: 10px;
+      gap: 11px;
       align-content: start;
     }
     .hero-content h2 {
       margin: 0;
-      font-size: 1.22rem;
+      font-size: 1.34rem;
       line-height: 1.2;
     }
     .hero-subtitle {
       margin: 0;
       color: var(--muted);
-      font-size: 0.91rem;
+      font-size: 0.9rem;
+      line-height: 1.35;
     }
     .badge-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 7px;
+      gap: 8px;
+      align-content: start;
     }
     .badge {
-      background: var(--accent-soft);
-      color: #0f3b52;
-      border: 1px solid #c7dce6;
+      background: linear-gradient(180deg, var(--accent-soft), #f6fbfd);
+      color: #0f3a50;
+      border: 1px solid #bfd8e4;
       border-radius: 999px;
-      padding: 4px 9px;
-      font-size: 0.78rem;
+      padding: 5px 10px;
+      font-size: 0.77rem;
       line-height: 1.2;
-      white-space: nowrap;
+      white-space: normal;
+      max-width: 100%;
     }
-    .metrics {
-      padding: 14px;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      min-height: 250px;
-    }
-    .metrics h3 {
+    .section-title {
       margin: 0 0 10px;
-      font-size: 0.96rem;
+      font-size: 0.87rem;
       color: #184157;
       text-transform: uppercase;
       letter-spacing: 0.06em;
+      font-weight: 700;
     }
     .metric-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
+      gap: 9px;
       align-content: start;
     }
     .metric {
       border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 9px 10px;
-      background: #f9fbfc;
+      border-radius: 12px;
+      padding: 10px;
+      background: #f8fbfd;
       display: grid;
-      gap: 3px;
-      min-height: 56px;
+      gap: 4px;
+      min-height: 62px;
     }
     .metric-label {
-      color: #5a7283;
+      color: #4f6978;
       font-size: 0.74rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       line-height: 1.2;
     }
     .metric-value {
-      font-size: 0.94rem;
+      font-size: 0.95rem;
       font-weight: 700;
-      line-height: 1.2;
+      line-height: 1.28;
+      word-break: break-word;
+    }
+    .secondary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
     }
     .detail-grid {
-      grid-column: 1 / -1;
       display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-    .compact {
-      padding: 12px;
-      min-height: 180px;
-    }
-    .compact h3 {
-      margin: 0 0 8px;
-      font-size: 0.9rem;
-      color: #184157;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      gap: 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .kv {
       display: grid;
@@ -831,30 +965,52 @@ function buildStatusHtml(output) {
       grid-template-columns: 1fr auto;
       align-items: center;
       gap: 8px;
-      padding: 5px 0;
-      border-bottom: 1px dashed #deeaef;
-      font-size: 0.84rem;
+      padding: 6px 0;
+      border-bottom: 1px dashed #d8e4eb;
+      font-size: 0.82rem;
       line-height: 1.2;
     }
     .kv-row:last-child {
       border-bottom: 0;
     }
     .kv-row span {
-      color: #5a7283;
+      color: #516b7a;
     }
     .kv-row strong {
       font-size: 0.86rem;
       text-align: right;
-      max-width: 220px;
+      max-width: 250px;
       word-break: break-word;
+      font-weight: 700;
+    }
+    .link-list {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .map-link {
+      text-decoration: none;
+      color: #0f3f55;
+      border: 1px solid #b9d0dc;
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: 0.77rem;
+      font-weight: 600;
+      background: linear-gradient(180deg, #f7fbfd, #eef6fa);
+      transition: border-color 120ms ease, background-color 120ms ease;
+    }
+    .map-link:hover {
+      border-color: #7eabbf;
+      background: #e9f3f8;
     }
     .raw {
-      padding: 12px;
+      background: var(--surface-strong);
     }
     details {
       border: 1px solid var(--line);
-      border-radius: 10px;
-      margin-bottom: 8px;
+      border-radius: 12px;
+      margin-bottom: 9px;
       background: #f7fafc;
     }
     details:last-child {
@@ -863,7 +1019,7 @@ function buildStatusHtml(output) {
     summary {
       cursor: pointer;
       list-style: none;
-      padding: 9px 11px;
+      padding: 10px 12px;
       font-weight: 600;
       font-size: 0.84rem;
       color: #184157;
@@ -873,24 +1029,29 @@ function buildStatusHtml(output) {
     }
     pre {
       margin: 0;
-      padding: 10px 11px 12px;
+      padding: 10px 12px 12px;
       border-top: 1px solid var(--line);
       overflow-x: auto;
       white-space: pre;
-      font-size: 0.72rem;
+      font-size: 0.73rem;
       line-height: 1.35;
-      color: #223f53;
+      color: #1d3d4f;
       background: #fdfefe;
+      font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
     }
     .empty {
       color: #708799;
-      font-size: 0.84rem;
-      padding: 5px 0;
+      font-size: 0.82rem;
+      padding: 6px 0;
     }
-    @media (max-width: 1100px) {
-      .dashboard {
+    @media (max-width: 1220px) {
+      .status-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .primary-grid {
         grid-template-columns: 1fr;
       }
+      .secondary-grid,
       .detail-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
@@ -900,10 +1061,30 @@ function buildStatusHtml(output) {
       .hero-visual {
         border-right: 0;
         border-bottom: 1px solid var(--line);
-        min-height: 210px;
+        min-height: 230px;
       }
     }
-    @media (max-width: 760px) {
+    @media (max-width: 860px) {
+      .status-strip,
+      .secondary-grid,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+      .kv-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+      }
+      .kv-row strong {
+        text-align: left;
+      }
+      .topbar-right {
+        justify-items: start;
+      }
+      .generated-at {
+        text-align: left;
+      }
+    }
+    @media (max-width: 680px) {
       body {
         padding: 10px;
       }
@@ -913,32 +1094,50 @@ function buildStatusHtml(output) {
       }
       .topbar-right {
         width: 100%;
-        justify-content: space-between;
-      }
-      .detail-grid {
         grid-template-columns: 1fr;
       }
       .metric-grid {
         grid-template-columns: 1fr;
+      }
+      .quick-nav {
+        gap: 7px;
+      }
+      .quick-nav a {
+        padding: 6px 10px;
+      }
+      .status-value {
+        font-size: 0.95rem;
       }
     }
   </style>
 </head>
 <body>
   <div class="page">
-    <header class="topbar">
+    <header class="card card-pad topbar" id="top">
       <div>
-        <h1>BYD Live Status</h1>
-        <p class="subtitle">Snapshot generated by client.js from current API state.</p>
+        <p class="kicker">BYD Telemetry Snapshot</p>
+        <h1>Vehicle Live Status</h1>
+        <p class="subtitle">Snapshot generated by client.js from current API responses.</p>
       </div>
       <div class="topbar-right">
-        <button id="sensitivity-toggle" class="eye-toggle" type="button" aria-label="Toggle sensitive blur" title="Blur sensitive values" aria-pressed="false">👀</button>
+        <button id="sensitivity-toggle" class="eye-toggle" type="button" aria-label="Toggle sensitive blur" title="Blur sensitive values" aria-pressed="false">Sensitive: visible</button>
         <div class="generated-at" id="generated-at">-</div>
       </div>
     </header>
 
-    <main class="dashboard">
-      <section class="card hero">
+    <nav class="card card-pad quick-nav" aria-label="Quick navigation">
+      <a href="#summary">Summary</a>
+      <a href="#highlights">Highlights</a>
+      <a href="#location">Location</a>
+      <a href="#timeline">Timeline</a>
+      <a href="#details">Details</a>
+      <a href="#raw">Raw JSON</a>
+    </nav>
+
+    <section class="status-strip" id="status-strip"></section>
+
+    <main class="primary-grid">
+      <section class="card hero" id="summary">
         <div class="hero-visual">
           <img id="car-image" alt="Vehicle image">
           <div class="image-placeholder" id="car-image-placeholder">No vehicle image URL in current payload.</div>
@@ -950,28 +1149,37 @@ function buildStatusHtml(output) {
         </div>
       </section>
 
-      <section class="card metrics">
-        <h3>Live Status</h3>
+      <section class="card card-pad" id="highlights">
+        <h3 class="section-title">Vehicle Highlights</h3>
         <div class="metric-grid" id="summary-metrics"></div>
       </section>
-
-      <div class="detail-grid">
-        <section class="card compact">
-          <h3>Doors / Locks / Windows</h3>
-          <div class="kv" id="doors-content"></div>
-        </section>
-        <section class="card compact">
-          <h3>Tires / Charge</h3>
-          <div class="kv" id="tires-content"></div>
-        </section>
-        <section class="card compact">
-          <h3>GPS / Polling</h3>
-          <div class="kv" id="gps-content"></div>
-        </section>
-      </div>
     </main>
 
-    <section class="card raw">
+    <section class="secondary-grid">
+      <section class="card card-pad" id="location">
+        <h3 class="section-title">Location</h3>
+        <div class="kv" id="location-content"></div>
+        <div class="link-list" id="map-links"></div>
+      </section>
+
+      <section class="card card-pad" id="timeline">
+        <h3 class="section-title">Data Timeline</h3>
+        <div class="kv" id="timeline-content"></div>
+      </section>
+    </section>
+
+    <section class="detail-grid" id="details">
+        <section class="card card-pad">
+          <h3 class="section-title">Doors / Locks / Windows</h3>
+          <div class="kv" id="doors-content"></div>
+        </section>
+        <section class="card card-pad">
+          <h3 class="section-title">Tires / Charge</h3>
+          <div class="kv" id="tires-content"></div>
+        </section>
+    </section>
+
+    <section class="card card-pad raw" id="raw">
       <details>
         <summary>Full output JSON</summary>
         <pre id="raw-output"></pre>
@@ -1065,18 +1273,77 @@ function buildStatusHtml(output) {
       }
 
       function formatTimestamp(value) {
-        var num = asNumber(value);
-        if (num === null) {
+        var ms = parseTimestampMs(value);
+        if (ms === null) {
           return formatValue(value);
         }
-        if (num > 1000000000) {
-          var ms = num > 9999999999 ? num : num * 1000;
-          var date = new Date(ms);
-          if (!Number.isNaN(date.getTime())) {
-            return date.toLocaleString();
-          }
+        var date = new Date(ms);
+        if (!Number.isNaN(date.getTime())) {
+          return date.toLocaleString();
         }
         return formatValue(value);
+      }
+
+      function parseTimestampMs(value) {
+        if (!nonEmpty(value)) {
+          return null;
+        }
+
+        if (typeof value === 'string') {
+          var text = value.trim();
+          if (/^\\d+$/.test(text)) {
+            var parsedNum = Number(text);
+            if (Number.isFinite(parsedNum)) {
+              value = parsedNum;
+            }
+          } else {
+            var parsedDate = Date.parse(text);
+            if (!Number.isNaN(parsedDate)) {
+              return parsedDate;
+            }
+            return null;
+          }
+        }
+
+        var num = asNumber(value);
+        if (num === null) {
+          return null;
+        }
+        if (num > 9999999999999) {
+          return null;
+        }
+        if (num > 9999999999) {
+          return Math.round(num);
+        }
+        if (num > 1000000000) {
+          return Math.round(num * 1000);
+        }
+        return null;
+      }
+
+      function formatAge(msDiff) {
+        if (!Number.isFinite(msDiff)) {
+          return 'unknown';
+        }
+        var future = msDiff < 0;
+        var absMs = Math.abs(msDiff);
+        var seconds = Math.round(absMs / 1000);
+        if (seconds < 5) {
+          return future ? 'in a few seconds' : 'just now';
+        }
+        if (seconds < 60) {
+          return future ? ('in ' + seconds + 's') : (seconds + 's ago');
+        }
+        var minutes = Math.round(seconds / 60);
+        if (minutes < 60) {
+          return future ? ('in ' + minutes + 'm') : (minutes + 'm ago');
+        }
+        var hours = Math.round(minutes / 60);
+        if (hours < 48) {
+          return future ? ('in ' + hours + 'h') : (hours + 'h ago');
+        }
+        var days = Math.round(hours / 24);
+        return future ? ('in ' + days + 'd') : (days + 'd ago');
       }
 
       function formatDistance(value) {
@@ -1123,6 +1390,64 @@ function buildStatusHtml(output) {
           return 'unknown';
         }
         return formatValue(value);
+      }
+
+      function toneForOnline(value) {
+        var text = String(value || '').toLowerCase();
+        if (text === 'online') {
+          return 'ok';
+        }
+        if (text === 'offline') {
+          return 'bad';
+        }
+        return 'neutral';
+      }
+
+      function toneForBattery(value) {
+        var num = asNumber(value);
+        if (num === null) {
+          return 'neutral';
+        }
+        if (num >= 55) {
+          return 'ok';
+        }
+        if (num >= 25) {
+          return 'warn';
+        }
+        return 'bad';
+      }
+
+      function toneForCharging(value) {
+        if (!nonEmpty(value)) {
+          return 'neutral';
+        }
+        var text = String(value).trim().toLowerCase();
+        if (!text || text === '-' || text === '0' || text === 'idle' || text === 'not charging') {
+          return 'neutral';
+        }
+        if (text.indexOf('error') !== -1 || text.indexOf('fault') !== -1) {
+          return 'bad';
+        }
+        if (text === '1' || text.indexOf('charging') !== -1 || text.indexOf('charge') !== -1) {
+          return 'ok';
+        }
+        return 'warn';
+      }
+
+      function toneForAge(msDiff) {
+        if (!Number.isFinite(msDiff)) {
+          return 'neutral';
+        }
+        if (msDiff < 0) {
+          return 'warn';
+        }
+        if (msDiff <= 5 * 60 * 1000) {
+          return 'ok';
+        }
+        if (msDiff <= 30 * 60 * 1000) {
+          return 'warn';
+        }
+        return 'bad';
       }
 
       function escapeHtml(text) {
@@ -1179,7 +1504,7 @@ function buildStatusHtml(output) {
           }
           html += '<article class="metric">';
           html += '<span class="metric-label">' + escapeHtml(item[0]) + '</span>';
-          html += '<strong class="metric-value">' + escapeHtml(formatValue(item[1])) + '</strong>';
+          html += '<strong class="metric-value">' + formatDisplayValue(item[1], Boolean(item[2])) + '</strong>';
           html += '</article>';
         }
         el.innerHTML = html || '<div class="empty">No live metrics available.</div>';
@@ -1202,6 +1527,46 @@ function buildStatusHtml(output) {
           html += '</div>';
         }
         el.innerHTML = html || '<div class="empty">No data.</div>';
+      }
+
+      function renderStatusStrip(items) {
+        var el = document.getElementById('status-strip');
+        if (!el) {
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < items.length; i += 1) {
+          var item = items[i];
+          if (!item || !nonEmpty(item.value)) {
+            continue;
+          }
+          var tone = item.tone === 'ok' || item.tone === 'warn' || item.tone === 'bad' ? item.tone : 'neutral';
+          html += '<article class="status-chip tone-' + tone + '">';
+          html += '<span class="status-label">' + escapeHtml(item.label) + '</span>';
+          html += '<strong class="status-value">' + formatDisplayValue(item.value, Boolean(item.sensitive)) + '</strong>';
+          html += '<div class="status-detail">' + escapeHtml(nonEmpty(item.detail) ? String(item.detail) : ' ') + '</div>';
+          html += '</article>';
+        }
+        el.innerHTML = html || '<article class="status-chip tone-neutral"><span class="status-label">Status</span><strong class="status-value">No live data</strong><div class="status-detail">Run client.js again to refresh.</div></article>';
+      }
+
+      function renderMapLinks(latitude, longitude) {
+        var el = document.getElementById('map-links');
+        if (!el) {
+          return;
+        }
+        if (!nonEmpty(latitude) || !nonEmpty(longitude)) {
+          el.innerHTML = '<div class="empty">Map links appear when GPS coordinates are available.</div>';
+          return;
+        }
+        var lat = String(latitude).trim();
+        var lon = String(longitude).trim();
+        var q = encodeURIComponent(lat + ',' + lon);
+        var googleUrl = 'https://www.google.com/maps?q=' + q;
+        var osmUrl = 'https://www.openstreetmap.org/?mlat=' + encodeURIComponent(lat) + '&mlon=' + encodeURIComponent(lon) + '#map=16/' + encodeURIComponent(lat) + '/' + encodeURIComponent(lon);
+        el.innerHTML = ''
+          + '<a class="map-link" target="_blank" rel="noopener noreferrer" href="' + googleUrl + '">Open in Google Maps</a>'
+          + '<a class="map-link" target="_blank" rel="noopener noreferrer" href="' + osmUrl + '">Open in OpenStreetMap</a>';
       }
 
       function stringifyPretty(value) {
@@ -1232,8 +1597,6 @@ function buildStatusHtml(output) {
       var gpsWrap = isObject(data.gps) ? data.gps : {};
       var gpsInfo = isObject(gpsWrap.gpsInfo) ? gpsWrap.gpsInfo : {};
       var gpsData = isObject(gpsInfo.data) ? gpsInfo.data : gpsInfo;
-      var realtimePoll = Array.isArray(data.realtimePoll) ? data.realtimePoll : [];
-      var gpsPoll = Array.isArray(gpsWrap.pollTrace) ? gpsWrap.pollTrace : [];
 
       var carImageUrl = firstString([
         pick(primaryVehicle, ['picMainUrl', 'picSetUrl']),
@@ -1246,6 +1609,10 @@ function buildStatusHtml(output) {
         pick(primaryVehicle, ['modelName', 'outModelType', 'autoAlias']),
         pick(vehicleInfo, ['modelName']),
       ]) || 'BYD Vehicle';
+
+      var realtimeTimestamp = pick(vehicleInfo, ['time']);
+      var realtimeMs = parseTimestampMs(realtimeTimestamp);
+      var nowMs = Date.now();
 
       var mileageSummary = firstDefined([
         asNumber(pick(vehicleInfo, ['totalMileageV2'])) > 0 ? pick(vehicleInfo, ['totalMileageV2']) : '',
@@ -1296,25 +1663,89 @@ function buildStatusHtml(output) {
         }
       }
 
+      var batteryRaw = firstDefined([
+        pick(vehicleInfo, ['elecPercent']),
+        pick(vehicleInfo, ['powerBattery']),
+      ]);
+      var rangeRaw = firstDefined([
+        pick(vehicleInfo, ['enduranceMileage']),
+        pick(vehicleInfo, ['evEndurance']),
+      ]);
+      var chargeState = pick(vehicleInfo, ['chargingState', 'chargeState']);
+      var speedRaw = pick(vehicleInfo, ['speed']);
+      var connectState = pick(vehicleInfo, ['connectState']);
+      var onlineLabel = mapOnlineState(pick(vehicleInfo, ['onlineState']));
+
+      var chargeHour = pick(vehicleInfo, ['remainingHours']);
+      var chargeMinute = pick(vehicleInfo, ['remainingMinutes']);
+      var chargeEta = '';
+      if (nonEmpty(chargeHour) || nonEmpty(chargeMinute)) {
+        chargeEta = String(nonEmpty(chargeHour) ? chargeHour : '0') + 'h ' + String(nonEmpty(chargeMinute) ? chargeMinute : '0') + 'm';
+      }
+
+      var gpsTimeValue = firstDefined([
+        pick(gpsData, ['gpsTimeStamp', 'gpsTimestamp', 'gpsTime', 'time', 'uploadTime']),
+        pick(gpsInfo, ['gpsTimeStamp', 'gpsTimestamp', 'gpsTime', 'time', 'uploadTime']),
+      ]);
+      var gpsMs = parseTimestampMs(gpsTimeValue);
+      var freshestMs = Number.isFinite(realtimeMs)
+        ? realtimeMs
+        : (Number.isFinite(gpsMs) ? gpsMs : null);
+      var freshnessDiff = Number.isFinite(freshestMs) ? nowMs - freshestMs : NaN;
+      var freshnessSource = Number.isFinite(realtimeMs)
+        ? 'Source: vehicle realtime'
+        : (Number.isFinite(gpsMs) ? 'Source: GPS feed' : '');
+
+      var gpsSummaryText = gpsWrap.ok ? 'ready' : firstDefined([gpsWrap.message, pick(gpsInfo, ['res']), 'unavailable']);
+      var gpsTone = gpsWrap.ok ? 'ok' : (nonEmpty(gpsSummaryText) ? 'warn' : 'bad');
+
+      renderStatusStrip([
+        {
+          label: 'Connectivity',
+          value: onlineLabel,
+          detail: nonEmpty(connectState) ? 'Connect state: ' + String(connectState) : '',
+          tone: toneForOnline(onlineLabel),
+        },
+        {
+          label: 'Battery',
+          value: formatPercent(batteryRaw),
+          detail: nonEmpty(rangeRaw) ? ('Range: ' + formatDistance(rangeRaw)) : '',
+          tone: toneForBattery(batteryRaw),
+        },
+        {
+          label: 'Charging',
+          value: formatValue(chargeState),
+          detail: nonEmpty(chargeEta) ? ('ETA: ' + chargeEta) : 'No ETA reported',
+          tone: toneForCharging(chargeState),
+        },
+        {
+          label: 'GPS',
+          value: gpsSummaryText,
+          detail: Number.isFinite(gpsMs) ? ('Timestamp: ' + formatTimestamp(gpsTimeValue)) : '',
+          tone: gpsTone,
+        },
+        {
+          label: 'Data Age',
+          value: formatAge(freshnessDiff),
+          detail: freshnessSource,
+          tone: toneForAge(freshnessDiff),
+        },
+      ]);
+
       var summaryMetrics = [
-        ['Online', mapOnlineState(pick(vehicleInfo, ['onlineState']))],
-        ['Connect state', pick(vehicleInfo, ['connectState'])],
-        ['Battery', formatPercent(firstDefined([
-          pick(vehicleInfo, ['elecPercent']),
-          pick(vehicleInfo, ['powerBattery']),
-        ]))],
-        ['Range', formatDistance(firstDefined([
-          pick(vehicleInfo, ['enduranceMileage']),
-          pick(vehicleInfo, ['evEndurance']),
-        ]))],
-        ['Charge state', pick(vehicleInfo, ['chargingState', 'chargeState'])],
+        ['Online', onlineLabel],
+        ['Connect state', connectState],
+        ['Battery', formatPercent(batteryRaw)],
+        ['Range', formatDistance(rangeRaw)],
+        ['Charge state', chargeState],
         ['Total power', pick(vehicleInfo, ['totalPower'])],
         ['Inside temp', formatTemp(pick(vehicleInfo, ['tempInCar']))],
-        ['Speed', formatSpeed(pick(vehicleInfo, ['speed']))],
+        ['Outside temp', formatTemp(pick(vehicleInfo, ['tempOutCar']))],
+        ['Speed', formatSpeed(speedRaw)],
         ['Mileage', formatDistance(mileageSummary)],
-        ['Realtime timestamp', formatTimestamp(pick(vehicleInfo, ['time']))],
+        ['Realtime timestamp', formatTimestamp(realtimeTimestamp)],
+        ['Data age', formatAge(freshnessDiff)],
         ['GPS status', gpsWrap.ok ? 'ok' : (gpsWrap.message || 'unavailable')],
-        ['Realtime poll entries', realtimePoll.length],
       ];
       renderMetrics('summary-metrics', summaryMetrics);
 
@@ -1336,13 +1767,6 @@ function buildStatusHtml(output) {
       ];
       renderRows('doors-content', doorRows);
 
-      var chargeHour = pick(vehicleInfo, ['remainingHours']);
-      var chargeMinute = pick(vehicleInfo, ['remainingMinutes']);
-      var chargeEta = '';
-      if (nonEmpty(chargeHour) || nonEmpty(chargeMinute)) {
-        chargeEta = String(nonEmpty(chargeHour) ? chargeHour : '0') + 'h ' + String(nonEmpty(chargeMinute) ? chargeMinute : '0') + 'm';
-      }
-
       var tireRows = [
         ['Left front tire', pick(vehicleInfo, ['leftFrontTirepressure'])],
         ['Right front tire', pick(vehicleInfo, ['rightFrontTirepressure'])],
@@ -1356,24 +1780,33 @@ function buildStatusHtml(output) {
       ];
       renderRows('tires-content', tireRows);
 
-      var gpsTimeValue = firstDefined([
-        pick(gpsData, ['gpsTimeStamp', 'gpsTimestamp', 'gpsTime', 'time', 'uploadTime']),
-        pick(gpsInfo, ['gpsTimeStamp', 'gpsTimestamp', 'gpsTime', 'time', 'uploadTime']),
-      ]);
       var latitudeValue = pick(gpsData, ['latitude', 'lat', 'gpsLatitude']);
       var longitudeValue = pick(gpsData, ['longitude', 'lng', 'lon', 'gpsLongitude']);
       var latitudeDisplay = nonEmpty(latitudeValue) ? String(latitudeValue) : '';
       var longitudeDisplay = nonEmpty(longitudeValue) ? String(longitudeValue) : '';
-      var gpsRows = [
+
+      var locationRows = [
         ['Latitude', latitudeDisplay, true],
         ['Longitude', longitudeDisplay, true],
-        ['Direction', pick(gpsData, ['direction', 'heading', 'course'])],
+        ['Heading', pick(gpsData, ['direction', 'heading', 'course'])],
         ['GPS speed', formatSpeed(pick(gpsData, ['speed', 'gpsSpeed']))],
-        ['GPS time', formatTimestamp(gpsTimeValue)],
         ['GPS result', firstDefined([pick(gpsInfo, ['res']), gpsWrap.message])],
-        ['GPS polls', gpsPoll.length],
       ];
-      renderRows('gps-content', gpsRows);
+      renderRows('location-content', locationRows);
+      renderMapLinks(latitudeDisplay, longitudeDisplay);
+
+      var generatedMs = parseTimestampMs(generatedAt);
+      var realtimeAge = Number.isFinite(realtimeMs) ? nowMs - realtimeMs : NaN;
+      var gpsAge = Number.isFinite(gpsMs) ? nowMs - gpsMs : NaN;
+      var timelineRows = [
+        ['Snapshot generated', formatTimestamp(generatedAt)],
+        ['Snapshot age', formatAge(Number.isFinite(generatedMs) ? nowMs - generatedMs : NaN)],
+        ['Realtime timestamp', formatTimestamp(realtimeTimestamp)],
+        ['Realtime age', formatAge(realtimeAge)],
+        ['GPS timestamp', formatTimestamp(gpsTimeValue)],
+        ['GPS age', formatAge(gpsAge)],
+      ];
+      renderRows('timeline-content', timelineRows);
 
       var sensitiveMaskEnabled = false;
       var sensitivityToggle = document.getElementById('sensitivity-toggle');
@@ -1383,6 +1816,7 @@ function buildStatusHtml(output) {
           return;
         }
         sensitivityToggle.setAttribute('aria-pressed', sensitiveMaskEnabled ? 'true' : 'false');
+        sensitivityToggle.textContent = sensitiveMaskEnabled ? 'Sensitive: hidden' : 'Sensitive: visible';
         sensitivityToggle.title = sensitiveMaskEnabled ? 'Show sensitive values' : 'Blur sensitive values';
       }
       if (sensitivityToggle) {
