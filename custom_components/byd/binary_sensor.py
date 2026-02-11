@@ -16,6 +16,7 @@ BINARY_SENSORS = [
     BinarySensorEntityDescription(key="doors", name="Doors", device_class=BinarySensorDeviceClass.DOOR),
     BinarySensorEntityDescription(key="windows", name="Windows", device_class=BinarySensorDeviceClass.WINDOW),
     BinarySensorEntityDescription(key="boot", name="Boot", device_class=BinarySensorDeviceClass.OPENING),
+    BinarySensorEntityDescription(key="charging", name="Charging", device_class=BinarySensorDeviceClass.BATTERY_CHARGING),
     BinarySensorEntityDescription(
         key="online",
         name="Online",
@@ -61,6 +62,15 @@ class BydBinarySensor(BydEntity, BinarySensorEntity):
             if value is None:
                 value = raw.get("backCover")
             return None if value is None else str(value) == "1"
+
+        if self.entity_description.key == "charging":
+            value = self.coordinator.data.realtime.charging_state
+            if value is None:
+                return None
+            try:
+                return int(float(value)) != -1
+            except (TypeError, ValueError):
+                return str(value).strip().lower() in {"1", "2", "charging", "true", "on"}
 
         if self.entity_description.key == "online":
             value = raw.get("onlineState")
