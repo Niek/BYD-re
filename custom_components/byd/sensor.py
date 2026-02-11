@@ -35,6 +35,15 @@ SENSORS = [
 ]
 
 
+def _parse_temperature(value: float | str | None) -> float | None:
+    """Parse temperature values and filter unavailable sentinel values."""
+    if value is None:
+        return None
+
+    temp = float(value)
+    return None if temp == -129 else temp
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     raw = coordinator.realtime_raw()
@@ -92,12 +101,6 @@ class BydSensor(BydEntity, SensorEntity):
             total_minutes += minutes if minutes is not None else 0
             return total_minutes
         return None
-
-    def _parse_temperature(value: float | str | None) -> float | None:
-        if value is None:
-            return None
-        temp = float(value)
-        return None if temp == -129 else temp
 
     @staticmethod
     def _parse_remaining_component(value, *, minimum: int, maximum: int | None = None) -> int | None:
