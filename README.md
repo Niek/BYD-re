@@ -80,7 +80,9 @@ Every BYD app call in this repo uses two crypto layers:
 
 3. Inner business payload layer (`encryData` / `respondData`)
 - Fields are uppercase hex AES-128-CBC (zero IV).
-- Login (`pwdLogin`) inner payload uses static `TRANSPORT_KEY`.
+- `/app/config/getCommonConfig` uses static `CONFIG_KEY`.
+- `/app/account/getAccountState` uses `MD5(identifier)`.
+- Login (`pwdLogin`) uses `MD5(MD5(signKey))` where `signKey` is the plaintext password sent in the outer payload.
 - Post-login payloads use token-derived keys from `respondData.token`:
   - content key: `MD5(encryToken)` (for `encryData` / `respondData`)
   - sign key: `MD5(signToken)` (for `sign`)
@@ -245,12 +247,12 @@ Decode full hook flow:
 ./xposed/http.sh xposed/samples/raw_hooks.log
 ```
 
-`xposed/http.sh` creates a temporary per-run decode-state file so keys learned from login are reused for later calls in the same flow.
+`xposed/http.sh` creates a temporary per-run decode-state file so keys learned from login are reused for later calls in the same flow. This is needed because each `node decompile.js` call is a separate process.
 
 ## Decoder Key Strategy
 
 `http-dec` inner-field decryption order:
-1. static AES keys (`CONFIG_KEY`, `TRANSPORT_KEY`)
+1. static AES keys (`CONFIG_KEY`)
 2. explicit `--key`
 3. learned state keys
 4. `md5(identifier)` when identifier is known
@@ -258,6 +260,7 @@ Decode full hook flow:
 State behavior:
 - default file: `/tmp/byd_http_dec_state.json`
 - override: `BYD_DECODE_STATE_FILE` or `--state-file`
+- auto-learns `pwdLoginKey = MD5(MD5(signKey))` from login outer payload when present
 - auto-learns `contentKey = MD5(token.encryToken)` from decoded login `respondData`
 
 ## Bangcle Tables

@@ -11,10 +11,8 @@ const DEFAULT_ALGORITHM = 'aes-128-cbc';
 const ZERO_IV = Buffer.alloc(16, 0);
 
 const CONFIG_KEY = Buffer.from('796834E7A2839412D79DBC5F1327594D', 'hex');
-const TRANSPORT_KEY = Buffer.from('9F29BE3E6254AF2C354F265B17C0CDD3', 'hex');
 const KNOWN_KEYS = Object.freeze([
   { name: 'CONFIG_KEY', key: CONFIG_KEY },
-  { name: 'TRANSPORT_KEY', key: TRANSPORT_KEY },
 ]);
 
 const DEFAULT_STATE_FILE = process.env.BYD_DECODE_STATE_FILE
@@ -62,6 +60,10 @@ function tryParseJson(text) {
   } catch {
     return null;
   }
+}
+
+function md5HexUpper(value) {
+  return crypto.createHash('md5').update(String(value), 'utf8').digest('hex').toUpperCase();
 }
 
 function printableRatio(buffer) {
@@ -322,6 +324,28 @@ function getStateCandidates(state, identifier) {
   return out;
 }
 
+function deriveStateKeysFromOuter(outerObject) {
+  if (!outerObject || typeof outerObject !== 'object') {
+    return [];
+  }
+  const functionType = typeof outerObject.functionType === 'string'
+    ? outerObject.functionType.toLowerCase()
+    : '';
+  if (functionType !== 'pwdlogin') {
+    return [];
+  }
+  if (typeof outerObject.signKey !== 'string' || !outerObject.signKey.length) {
+    return [];
+  }
+  const keyHex = md5HexUpper(md5HexUpper(outerObject.signKey));
+  const identifier = typeof outerObject.identifier === 'string' ? outerObject.identifier : null;
+  return [{
+    keyHex,
+    identifier,
+    source: 'pwdLogin.signKey',
+  }];
+}
+
 function captureStateFromDecodedField(state, outerObject, field, decodedResult, debug = false) {
   if (!decodedResult || !decodedResult.buffer || field !== 'respondData') {
     return false;
@@ -557,6 +581,12 @@ if (require.main === module) {
 
     if (!outerObject || typeof outerObject !== 'object') {
       process.exit(0);
+    }
+
+    for (const entry of deriveStateKeysFromOuter(outerObject)) {
+      if (addStateKey(state, entry.keyHex, entry.identifier, entry.source)) {
+        stateDirty = true;
+      }
     }
 
     const effectiveIdentifier = explicitIdentifier
