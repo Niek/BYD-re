@@ -62,9 +62,11 @@ class BydSensor(BydEntity, SensorEntity):
         rt = self.coordinator.data.realtime
         raw = self.coordinator.realtime_raw()
         if self.entity_description.key == "battery":
-            return rt.elec_percent
+            value = rt.elec_percent
+            return None if value is None else round(float(value))
         if self.entity_description.key == "range":
-            return rt.endurance_mileage
+            value = rt.endurance_mileage
+            return None if value is None else round(float(value))
         if self.entity_description.key == "inside_temperature":
             inside_temp = _parse_temperature(raw.get("tempInCar"))
             if inside_temp is None:
@@ -82,18 +84,29 @@ class BydSensor(BydEntity, SensorEntity):
 
             return _parse_temperature(raw.get("tempInCar"))
         if self.entity_description.key == "charge_time_remaining":
-            hours = raw.get("remainingHours")
-            minutes = raw.get("remainingMinutes")
+            hours = self._parse_remaining_component(raw.get("remainingHours"), minimum=0)
+            minutes = self._parse_remaining_component(raw.get("remainingMinutes"), minimum=0, maximum=59)
             if hours is None and minutes is None:
                 return None
-            total_minutes = (int(float(hours)) if hours is not None else 0) * 60
-            total_minutes += int(float(minutes)) if minutes is not None else 0
+            total_minutes = (hours if hours is not None else 0) * 60
+            total_minutes += minutes if minutes is not None else 0
             return total_minutes
         return None
 
+    def _parse_temperature(value: float | str | None) -> float | None:
+        if value is None:
+            return None
+        temp = float(value)
+        return None if temp == -129 else temp
 
-def _parse_temperature(value: float | str | None) -> float | None:
-    if value is None:
-        return None
-    temp = float(value)
-    return None if temp == -129 else temp
+    @staticmethod
+    def _parse_remaining_component(value, *, minimum: int, maximum: int | None = None) -> int | None:
+        """Parse and validate a charge remaining component from raw payload."""
+        if value is None:
+            return None
+        parsed = int(float(value))
+        if parsed < minimum:
+            return None
+        if maximum is not None and parsed > maximum:
+            return None
+        return parsed
