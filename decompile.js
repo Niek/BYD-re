@@ -69,6 +69,9 @@ function printableRatio(buffer) {
 }
 
 function isLikelyPlaintext(buffer) {
+  if (Buffer.isBuffer(buffer) && buffer.length === 0) {
+    return true;
+  }
   const parsed = tryParseJson(buffer.toString('utf8').trim());
   return Boolean(parsed) || printableRatio(buffer) >= 0.9;
 }
@@ -93,6 +96,10 @@ function renderDecodedPayload(label, buffer) {
   const parsed = tryParseJson(utf8);
   const sample = buffer.toString('hex').slice(0, 64);
   console.log(`# ${label}: len=${buffer.length} hex=${sample}${buffer.length * 2 > sample.length ? '…' : ''}`);
+  if (buffer.length === 0) {
+    console.log('(empty plaintext)');
+    return;
+  }
   if (parsed) {
     console.log(JSON.stringify(parsed, null, 2));
   } else {
@@ -328,13 +335,22 @@ function deriveStateKeysFromOuter(outerObject) {
   if (typeof outerObject.signKey !== 'string' || !outerObject.signKey.length) {
     return [];
   }
-  const keyHex = md5HexUpper(md5HexUpper(outerObject.signKey));
+  const singleHashKeyHex = md5HexUpper(outerObject.signKey);
+  const doubleHashKeyHex = md5HexUpper(singleHashKeyHex);
   const identifier = typeof outerObject.identifier === 'string' ? outerObject.identifier : null;
-  return [{
-    keyHex,
+  const out = [{
+    keyHex: singleHashKeyHex,
     identifier,
-    source: 'pwdLogin.signKey',
+    source: 'pwdLogin.signKey.md5',
   }];
+  if (doubleHashKeyHex !== singleHashKeyHex) {
+    out.push({
+      keyHex: doubleHashKeyHex,
+      identifier,
+      source: 'pwdLogin.signKey.md5md5',
+    });
+  }
+  return out;
 }
 
 function captureStateFromDecodedField(state, outerObject, field, decodedResult, debug = false) {
