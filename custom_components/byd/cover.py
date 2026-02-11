@@ -21,7 +21,7 @@ class BydWindowsCover(BydEntity, CoverEntity):
     """Represents all windows as one cover."""
 
     _attr_name = "Windows"
-    _attr_supported_features = CoverEntityFeature.CLOSE
+    _attr_supported_features = CoverEntityFeature.OPEN
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
@@ -40,7 +40,8 @@ class BydWindowsCover(BydEntity, CoverEntity):
         known = [v for v in windows if v is not None]
         if not known:
             return None
+        # Expose reversed cover semantics in Home Assistant: windows closed => cover open.
         return all(str(v) == "0" for v in known)
 
-    async def async_close_cover(self, **kwargs):
+    async def async_open_cover(self, **kwargs):
         raise HomeAssistantError("Windows-up remote command code is not mapped yet")
