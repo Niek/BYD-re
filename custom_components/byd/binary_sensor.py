@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorEntityDescription
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity, BinarySensorEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -15,6 +16,12 @@ BINARY_SENSORS = [
     BinarySensorEntityDescription(key="doors", name="Doors Open"),
     BinarySensorEntityDescription(key="windows", name="Windows Open"),
     BinarySensorEntityDescription(key="boot", name="Boot Open"),
+    BinarySensorEntityDescription(
+        key="online",
+        name="Online",
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
 ]
 
 
@@ -53,6 +60,10 @@ class BydBinarySensor(BydEntity, BinarySensorEntity):
             value = raw.get("trunkLid")
             if value is None:
                 value = raw.get("backCover")
+            return None if value is None else str(value) == "1"
+
+        if self.entity_description.key == "online":
+            value = raw.get("onlineState")
             return None if value is None else str(value) == "1"
 
         return None

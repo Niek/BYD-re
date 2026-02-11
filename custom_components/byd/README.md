@@ -6,6 +6,9 @@ This custom component ports the `client.js` login + realtime + GPS flow into Hom
 
 - Sensor: battery percent
 - Sensor: range (km)
+- Sensor: inside temperature
+- Sensor: outside temperature
+- Sensor: charge time remaining (minutes)
 - Device tracker: GPS lat/lon
 - Lock: vehicle lock/unlock
 - Cover: windows state (close command placeholder)
@@ -14,7 +17,7 @@ This custom component ports the `client.js` login + realtime + GPS flow into Hom
 - Switch: charging toggle (placeholder)
 - Siren: alarm (mapped to horn)
 - Light: flash lights
-- Binary sensors: bonnet, doors, windows, boot
+- Binary sensors: bonnet, doors, windows, boot, online (diagnostic connectivity)
 
 ## Config flow fields
 
