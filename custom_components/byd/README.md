@@ -17,7 +17,7 @@ This custom component ports the `client.js` login + realtime + GPS flow into Hom
 - Switch: charging toggle (placeholder)
 - Siren: alarm (mapped to horn)
 - Light: flash lights
-- Binary sensors: bonnet, doors, windows, boot, online (diagnostic connectivity)
+- Binary sensors: bonnet, doors, windows, boot, charging, online (diagnostic connectivity)
 
 ## Config flow fields
 
