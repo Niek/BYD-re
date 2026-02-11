@@ -9,8 +9,7 @@ PLATFORMS = [
     "cover",
     "climate",
     "switch",
-    "siren",
-    "light",
+    "button",
 ]
 
 CONF_COUNTRY_CODE = "country_code"
