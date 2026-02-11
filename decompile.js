@@ -14,6 +14,9 @@ const CONFIG_KEY = Buffer.from('796834E7A2839412D79DBC5F1327594D', 'hex');
 const KNOWN_KEYS = Object.freeze([
   { name: 'CONFIG_KEY', key: CONFIG_KEY },
 ]);
+const HEX_RE = /^[0-9a-fA-F]+$/;
+const KEY_HEX_RE = /^[0-9A-F]{32}$/;
+const ENVELOPE_RE = /^F[A-Za-z0-9+/_=-]+$/;
 
 const DEFAULT_STATE_FILE = process.env.BYD_DECODE_STATE_FILE
   ? path.resolve(process.env.BYD_DECODE_STATE_FILE)
@@ -29,26 +32,12 @@ function ensureBuffer(data, encoding = 'utf8') {
   throw new TypeError('Expected data to be a Buffer or string');
 }
 
-function hexToBuffer(hexString) {
-  if (Buffer.isBuffer(hexString)) {
-    return Buffer.from(hexString);
-  }
-  if (typeof hexString !== 'string') {
-    throw new TypeError('hexToBuffer expects a string or Buffer');
-  }
-  const normalised = hexString.replace(/\s+/g, '');
-  if (!normalised.length || normalised.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(normalised)) {
-    throw new Error('Invalid hex string');
-  }
-  return Buffer.from(normalised, 'hex');
-}
-
-function looksLikeBase64(text) {
+function looksLikeBangcleEnvelope(text) {
   if (typeof text !== 'string' || !text.length) {
     return false;
   }
   const cleaned = text.replace(/\s+/g, '').trim();
-  return /^[A-Za-z0-9+/]+={0,3}$/.test(cleaned);
+  return ENVELOPE_RE.test(cleaned);
 }
 
 function tryParseJson(text) {
@@ -79,6 +68,26 @@ function printableRatio(buffer) {
   return printable / buffer.length;
 }
 
+function isLikelyPlaintext(buffer) {
+  const parsed = tryParseJson(buffer.toString('utf8').trim());
+  return Boolean(parsed) || printableRatio(buffer) >= 0.9;
+}
+
+function extractLongestHexChunk(text) {
+  const cleaned = String(text || '').replace(/\s+/g, '');
+  if (!cleaned.length) {
+    return '';
+  }
+  if (HEX_RE.test(cleaned)) {
+    return cleaned;
+  }
+  const matches = cleaned.match(/[0-9a-fA-F]+/g);
+  if (!matches || !matches.length) {
+    return '';
+  }
+  return matches.reduce((longest, current) => (current.length > longest.length ? current : longest), '');
+}
+
 function renderDecodedPayload(label, buffer) {
   const utf8 = buffer.toString('utf8').trim();
   const parsed = tryParseJson(utf8);
@@ -92,11 +101,10 @@ function renderDecodedPayload(label, buffer) {
 }
 
 function decryptAesCbc(cipherBuffer, keyBuffer, ivBuffer) {
-  const decipher = crypto.createDecipheriv(
-    keyBuffer.length === 16 ? 'aes-128-cbc' : 'aes-256-cbc',
-    keyBuffer,
-    ivBuffer,
-  );
+  if (!Buffer.isBuffer(keyBuffer) || keyBuffer.length !== 16) {
+    throw new Error('AES key must be 16 bytes');
+  }
+  const decipher = crypto.createDecipheriv(DEFAULT_ALGORITHM, keyBuffer, ivBuffer);
   return Buffer.concat([decipher.update(cipherBuffer), decipher.final()]);
 }
 
@@ -104,8 +112,7 @@ function tryStaticKeyDecrypt(buffer) {
   for (const { name, key } of KNOWN_KEYS) {
     try {
       const plaintext = decryptAesCbc(buffer, key, ZERO_IV);
-      const parsed = tryParseJson(plaintext.toString('utf8').trim());
-      if (!parsed && printableRatio(plaintext) < 0.9) {
+      if (!isLikelyPlaintext(plaintext)) {
         continue;
       }
       return { keyName: name, buffer: plaintext };
@@ -203,19 +210,6 @@ function extractBalancedJsonWithOptionalPrefix(text) {
   return `${prefix}${trimmed.slice(start, end)}`;
 }
 
-function decryptInnerPayload(hexCiphertext, identifier, options = {}) {
-  if (!identifier || typeof identifier !== 'string') {
-    throw new Error('Identifier must be a non-empty string');
-  }
-  const key = crypto.createHash('md5').update(identifier, 'utf8').digest();
-  const cipherBuf = hexToBuffer(hexCiphertext);
-  const plaintext = decryptAesCbc(cipherBuf, key, ZERO_IV);
-  if (options.returnBuffer) {
-    return plaintext;
-  }
-  return plaintext.toString(options.outputEncoding || 'utf8');
-}
-
 function encryptInnerPayload(plaintext, identifier, options = {}) {
   if (!identifier || typeof identifier !== 'string') {
     throw new Error('Identifier must be a non-empty string');
@@ -263,7 +257,7 @@ function saveState(state, stateFile = DEFAULT_STATE_FILE) {
         source: typeof entry.source === 'string' ? entry.source : 'state',
         updatedAt: Number(entry.updatedAt) || Date.now(),
       }))
-      .filter((entry) => /^[0-9A-F]{32}$/.test(entry.keyHex)),
+      .filter((entry) => KEY_HEX_RE.test(entry.keyHex)),
   };
   fs.writeFileSync(stateFile, JSON.stringify(normalised, null, 2));
 }
@@ -273,17 +267,14 @@ function addStateKey(state, keyHex, identifier, source = 'state') {
     return false;
   }
   const clean = String(keyHex).trim().toUpperCase();
-  if (!/^[0-9A-F]{32}$/.test(clean)) {
+  if (!KEY_HEX_RE.test(clean)) {
     return false;
   }
   const id = typeof identifier === 'string' && identifier.trim().length
     ? identifier.trim()
     : null;
-  const now = Date.now();
   const existing = (state.keys || []).find((entry) => entry.keyHex === clean && entry.identifier === id);
   if (existing) {
-    existing.updatedAt = now;
-    existing.source = source;
     return false;
   }
   if (!Array.isArray(state.keys)) {
@@ -293,7 +284,7 @@ function addStateKey(state, keyHex, identifier, source = 'state') {
     keyHex: clean,
     identifier: id,
     source,
-    updatedAt: now,
+    updatedAt: Date.now(),
   });
   return true;
 }
@@ -303,7 +294,7 @@ function getStateCandidates(state, identifier) {
   const preferred = [];
   const others = [];
   for (const entry of keys) {
-    if (!entry || !entry.keyHex || !/^[0-9A-F]{32}$/.test(entry.keyHex)) {
+    if (!entry || !entry.keyHex || !KEY_HEX_RE.test(entry.keyHex)) {
       continue;
     }
     if (identifier && entry.identifier === identifier) {
@@ -374,7 +365,7 @@ if (require.main === module) {
   function printUsage() {
     console.error([
       'Usage:',
-      '  node decompile.js http-dec <payload> [--identifier <id>] [--field <name>] [--key <hex>] [--state-file <path>] [--debug]',
+      '  node decompile.js http-dec <payload> [--field <name>] [--state-file <path>] [--debug]',
       '  node decompile.js http-enc <plaintext> --identifier <id>',
     ].join('\n'));
   }
@@ -407,24 +398,24 @@ if (require.main === module) {
 
   function decodeHexField(label, rawHex, options = {}) {
     const cleanedHex = String(rawHex || '').replace(/\s+/g, '');
-    if (!cleanedHex.length || cleanedHex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(cleanedHex)) {
+    if (!cleanedHex.length || cleanedHex.length % 2 !== 0 || !HEX_RE.test(cleanedHex)) {
       return null;
     }
 
     const cipherBuffer = Buffer.from(cleanedHex, 'hex');
-    const tryKey = (hex, display) => {
+    const tryKey = (rawKeyHex, display) => {
+      const keyHex = String(rawKeyHex || '').replace(/\s+/g, '').toUpperCase();
+      if (!KEY_HEX_RE.test(keyHex)) {
+        return null;
+      }
       try {
-        const keyBuf = Buffer.from(hex, 'hex');
-        if (keyBuf.length !== 16 && keyBuf.length !== 32) {
-          return null;
-        }
+        const keyBuf = Buffer.from(keyHex, 'hex');
         const plaintext = decryptAesCbc(cipherBuffer, keyBuf, ZERO_IV);
-        const parsed = tryParseJson(plaintext.toString('utf8').trim());
-        if (!parsed && printableRatio(plaintext) < 0.9) {
+        if (!isLikelyPlaintext(plaintext)) {
           return null;
         }
         renderDecodedPayload(`${label} (${display})`, plaintext);
-        return { label: display, keyHex: hex.toUpperCase(), buffer: plaintext };
+        return { label: display, keyHex, buffer: plaintext };
       } catch {
         return null;
       }
@@ -436,13 +427,6 @@ if (require.main === module) {
       return { label: `static:${staticAttempt.keyName}`, buffer: staticAttempt.buffer };
     }
 
-    if (options.keyHex) {
-      const keyed = tryKey(options.keyHex, `key:${options.keyHex}`);
-      if (keyed) {
-        return keyed;
-      }
-    }
-
     for (const entry of options.stateCandidates || []) {
       const dynamic = tryKey(entry.keyHex, `state:${entry.keyHex.slice(0, 12).toLowerCase()}`);
       if (dynamic) {
@@ -452,7 +436,11 @@ if (require.main === module) {
 
     if (options.identifier) {
       try {
-        const buffer = decryptInnerPayload(cleanedHex, options.identifier, { returnBuffer: true });
+        const key = crypto.createHash('md5').update(options.identifier, 'utf8').digest();
+        const buffer = decryptAesCbc(cipherBuffer, key, ZERO_IV);
+        if (!isLikelyPlaintext(buffer)) {
+          return null;
+        }
         renderDecodedPayload(`${label} (md5(identifier))`, buffer);
         return { label: 'md5(identifier)', buffer };
       } catch {
@@ -473,7 +461,7 @@ if (require.main === module) {
     if (command === 'http-enc') {
       const { positional, options } = parseArgs(rest);
       const plaintext = positional[0];
-      const identifier = options.identifier || options.id;
+      const identifier = options.identifier;
       if (!plaintext || !identifier) {
         throw new Error('http-enc requires <plaintext> and --identifier <id>');
       }
@@ -491,9 +479,7 @@ if (require.main === module) {
       throw new Error('http-dec requires <payload>');
     }
 
-    const explicitIdentifier = options.identifier || options.id || null;
     const fieldOverride = options.field;
-    const keyHex = options.key || null;
     const debug = Boolean(options.debug || options.verbose);
     const stateFile = options['state-file']
       ? path.resolve(String(options['state-file']))
@@ -542,11 +528,9 @@ if (require.main === module) {
       }
     };
 
-    if (/^[0-9a-fA-F]+$/.test(compactInput)) {
+    if (HEX_RE.test(compactInput)) {
       const hexResult = decodeHexField('hex', compactInput, {
-        identifier: explicitIdentifier,
-        keyHex,
-        stateCandidates: getStateCandidates(state, explicitIdentifier),
+        stateCandidates: getStateCandidates(state, null),
       });
       if (!hexResult) {
         throw new Error('No decrypt strategy succeeded for hex input');
@@ -560,7 +544,7 @@ if (require.main === module) {
       process.exit(0);
     }
 
-    if (looksLikeBase64(compactInput)) {
+    if (looksLikeBangcleEnvelope(compactInput)) {
       try {
         const plaintext = bangcle.decodeEnvelope(compactInput);
         const utf8 = plaintext.toString('utf8');
@@ -589,8 +573,7 @@ if (require.main === module) {
       }
     }
 
-    const effectiveIdentifier = explicitIdentifier
-      || (typeof outerObject.identifier === 'string' ? outerObject.identifier : null);
+    const effectiveIdentifier = typeof outerObject.identifier === 'string' ? outerObject.identifier : null;
     const stateCandidates = getStateCandidates(state, effectiveIdentifier);
 
     const candidateFields = [];
@@ -613,16 +596,9 @@ if (require.main === module) {
       if (typeof value !== 'string' || !value.length) {
         continue;
       }
-      let hex = value.replace(/\s+/g, '');
-      if (!/^[0-9a-fA-F]+$/.test(hex)) {
-        const matches = hex.match(/[0-9a-fA-F]+/g);
-        if (matches && matches.length) {
-          hex = matches.reduce((longest, current) => (current.length > longest.length ? current : longest), '');
-        }
-      }
+      const hex = extractLongestHexChunk(value);
       const decodeResult = decodeHexField(field, hex, {
         identifier: effectiveIdentifier,
-        keyHex,
         stateCandidates,
       });
       if (!decodeResult) {

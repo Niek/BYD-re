@@ -1,6 +1,6 @@
 # BYD Reverse Engineering
 
-Working reverse of the BYD app HTTP crypto path for the pinned APK build.
+Reverse engineering of the BYD app HTTP crypto path used in the Android app.
 
 Base host: `https://dilinkappoversea-eu.byd.auto`
 
@@ -10,6 +10,9 @@ Base host: `https://dilinkappoversea-eu.byd.auto`
 > docker-compose up
 > # Access: http://localhost:3000
 > ```
+## Related Project
+
+- [`pyBYD`](https://github.com/jkaberg/pyBYD): full Python library built from these reverse-engineering findings.
 
 ## App & Transport Snapshot
 
@@ -222,7 +225,7 @@ node decompile.js http-dec '<payload>'
 ```
 
 Accepted input:
-- raw envelope text (Base64-like, must be `F`-prefixed)
+- raw Bangcle envelope ciphertext (`F` + Base64/Base64URL payload)
 - full JSON body such as `{"request":"..."}` or `{"response":"..."}`
 - raw inner hex ciphertext
 
@@ -230,8 +233,6 @@ Common options:
 
 ```bash
 node decompile.js http-dec '<payload>' --debug
-node decompile.js http-dec '<payload>' --identifier <id>
-node decompile.js http-dec '<payload>' --key <32-hex>
 node decompile.js http-dec '<payload>' --state-file /tmp/byd_state.json
 ```
 
@@ -253,9 +254,8 @@ Decode full hook flow:
 
 `http-dec` inner-field decryption order:
 1. static AES keys (`CONFIG_KEY`)
-2. explicit `--key`
-3. learned state keys
-4. `md5(identifier)` when identifier is known
+2. learned state keys
+3. `md5(identifier)` when identifier is known from parsed outer payload
 
 State behavior:
 - default file: `/tmp/byd_http_dec_state.json`

@@ -27,8 +27,9 @@ const CONFIG = Object.freeze({
   imeiMd5: process.env.BYD_IMEI_MD5 || '00000000000000000000000000000000',
   vin: process.env.BYD_VIN || '',
   networkType: process.env.BYD_NETWORK_TYPE || 'wifi',
-  appInnerVersion: process.env.BYD_APP_INNER_VERSION || '220',
-  appVersion: process.env.BYD_APP_VERSION || '2.2.1',
+  // See: https://apkpure.com/byd/com.byd.bydautolink
+  appInnerVersion: process.env.BYD_APP_INNER_VERSION || '323',
+  appVersion: process.env.BYD_APP_VERSION || '3.2.3',
   osType: process.env.BYD_OS_TYPE || '15',
   osVersion: process.env.BYD_OS_VERSION || '35',
   timeZone: process.env.BYD_TIME_ZONE || 'Europe/Amsterdam',

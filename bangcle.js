@@ -2,6 +2,7 @@
 
 // Generated from byd/libencrypt.so.mem.so via scripts/generate_bangcle_auth_tables.js.
 const encodedAuthTables = require('./bangcle_auth_tables');
+const ZERO_IV = Buffer.alloc(16, 0);
 
 function decodeTable(name, expectedLength) {
   const base64 = encodedAuthTables[name];
@@ -34,9 +35,16 @@ function prepareAESMatrix(input, output) {
   }
 }
 
-function decryptBlockAuth(block, round = 1, scratch = {}) {
+function writeBlockFromMatrix(input, output) {
+  for (let col = 0; col < 4; col += 1) {
+    for (let row = 0; row < 4; row += 1) {
+      output[col + row * 4] = input[col * 8 + row];
+    }
+  }
+}
+
+function decryptBlockAuth(block, scratch = {}) {
   const tables = AUTH_TABLES;
-  const param3 = (typeof round === 'number' && Number.isFinite(round)) ? round : 1;
 
   const state = scratch.state32 || new Uint8Array(32);
   scratch.state32 = state;
@@ -49,7 +57,7 @@ function decryptBlockAuth(block, round = 1, scratch = {}) {
 
   prepareAESMatrix(block, state);
 
-  for (let round = 9; round >= Math.max(1, param3); round -= 1) {
+  for (let round = 9; round >= 1; round -= 1) {
     const lVar20 = round;
     const lVar21 = lVar20 * 4;
     let permPtr = 0;
@@ -108,45 +116,37 @@ function decryptBlockAuth(block, round = 1, scratch = {}) {
     }
   }
 
-  if (param3 === 1) {
-    tmp32.set(state);
-    let uVar8 = 1;
-    let uVar10 = 3;
-    let uVar12 = 2;
+  tmp32.set(state);
+  let uVar8 = 1;
+  let uVar10 = 3;
+  let uVar12 = 2;
 
-    for (let row = 0; row < 4; row += 1) {
-      const idx0 = tmp32[row] + row * 0x400;
-      state[row] = tables.invFirst[idx0];
+  for (let row = 0; row < 4; row += 1) {
+    const idx0 = tmp32[row] + row * 0x400;
+    state[row] = tables.invFirst[idx0];
 
-      const row1 = uVar10 & 3;
-      const idx1 = tmp32[8 + row1] + row1 * 0x400 + 0x100;
-      state[8 + row] = tables.invFirst[idx1];
+    const row1 = uVar10 & 3;
+    const idx1 = tmp32[8 + row1] + row1 * 0x400 + 0x100;
+    state[8 + row] = tables.invFirst[idx1];
 
-      const row2 = uVar12 & 3;
-      const idx2 = tmp32[0x10 + row2] + row2 * 0x400 + 0x200;
-      state[0x10 + row] = tables.invFirst[idx2];
+    const row2 = uVar12 & 3;
+    const idx2 = tmp32[0x10 + row2] + row2 * 0x400 + 0x200;
+    state[0x10 + row] = tables.invFirst[idx2];
 
-      const row3 = uVar8 & 3;
-      const idx3 = tmp32[0x18 + row3] + row3 * 0x400 + 0x300;
-      state[0x18 + row] = tables.invFirst[idx3];
+    const row3 = uVar8 & 3;
+    const idx3 = tmp32[0x18 + row3] + row3 * 0x400 + 0x300;
+    state[0x18 + row] = tables.invFirst[idx3];
 
-      uVar8 += 1;
-      uVar10 += 1;
-      uVar12 += 1;
-    }
+    uVar8 += 1;
+    uVar10 += 1;
+    uVar12 += 1;
   }
-
-  for (let col = 0; col < 4; col += 1) {
-    for (let row = 0; row < 4; row += 1) {
-      output[col + row * 4] = state[col * 8 + row];
-    }
-  }
+  writeBlockFromMatrix(state, output);
   return output;
 }
 
-function encryptBlockAuth(block, round = 10, scratch = {}) {
+function encryptBlockAuth(block, scratch = {}) {
   const tables = AUTH_TABLES;
-  const param3 = (typeof round === 'number' && Number.isFinite(round)) ? round : 10;
 
   const state = scratch.state32 || new Uint8Array(32);
   scratch.state32 = state;
@@ -159,8 +159,7 @@ function encryptBlockAuth(block, round = 10, scratch = {}) {
 
   prepareAESMatrix(block, state);
 
-  const rounds = Math.min(9, Math.max(0, param3));
-  for (let round = 0; round < rounds; round += 1) {
+  for (let round = 0; round < 9; round += 1) {
     const lVar21 = round * 4;
     let permPtr = 0;
 
@@ -217,38 +216,31 @@ function encryptBlockAuth(block, round = 10, scratch = {}) {
     }
   }
 
-  if (param3 === 10) {
-    tmp32.set(state);
-    let uVar13 = 3;
-    let uVar9 = 2;
-    let uVar11 = 1;
-    let uVar8 = 0;
+  tmp32.set(state);
+  let uVar13 = 3;
+  let uVar9 = 2;
+  let uVar11 = 1;
+  let uVar8 = 0;
 
-    for (let row = 0; row < 4; row += 1) {
-      const row0 = uVar8 & 3;
-      state[row] = tables.final[tmp32[row0] + row0 * 0x400];
+  for (let row = 0; row < 4; row += 1) {
+    const row0 = uVar8 & 3;
+    state[row] = tables.final[tmp32[row0] + row0 * 0x400];
 
-      const row1 = uVar11 & 3;
-      state[8 + row] = tables.final[tmp32[8 + row1] + row1 * 0x400 + 0x100];
+    const row1 = uVar11 & 3;
+    state[8 + row] = tables.final[tmp32[8 + row1] + row1 * 0x400 + 0x100];
 
-      const row2 = uVar9 & 3;
-      state[0x10 + row] = tables.final[tmp32[0x10 + row2] + row2 * 0x400 + 0x200];
+    const row2 = uVar9 & 3;
+    state[0x10 + row] = tables.final[tmp32[0x10 + row2] + row2 * 0x400 + 0x200];
 
-      const row3 = uVar13 & 3;
-      state[0x18 + row] = tables.final[tmp32[0x18 + row3] + row3 * 0x400 + 0x300];
+    const row3 = uVar13 & 3;
+    state[0x18 + row] = tables.final[tmp32[0x18 + row3] + row3 * 0x400 + 0x300];
 
-      uVar8 += 1;
-      uVar11 += 1;
-      uVar9 += 1;
-      uVar13 += 1;
-    }
+    uVar8 += 1;
+    uVar11 += 1;
+    uVar9 += 1;
+    uVar13 += 1;
   }
-
-  for (let col = 0; col < 4; col += 1) {
-    for (let row = 0; row < 4; row += 1) {
-      output[col + row * 4] = state[col * 8 + row];
-    }
-  }
+  writeBlockFromMatrix(state, output);
   return output;
 }
 
@@ -258,6 +250,15 @@ function xorInto(target, source) {
   }
 }
 
+function createScratch() {
+  return {
+    state32: new Uint8Array(32),
+    tmp32: new Uint8Array(32),
+    temp64: Buffer.alloc(64),
+    out: new Uint8Array(16),
+  };
+}
+
 function decryptCbc(data, iv) {
   if (data.length % 16 !== 0) {
     throw new Error('Bangcle ciphertext length must be multiple of 16');
@@ -265,18 +266,13 @@ function decryptCbc(data, iv) {
   if (iv.length !== 16) {
     throw new Error('Bangcle CBC IV must be 16 bytes');
   }
-  const scratch = {
-    state32: new Uint8Array(32),
-    tmp32: new Uint8Array(32),
-    temp64: Buffer.alloc(64),
-    out: new Uint8Array(16),
-  };
+  const scratch = createScratch();
   const result = Buffer.alloc(data.length);
   let prev = Uint8Array.from(iv);
 
   for (let offset = 0; offset < data.length; offset += 16) {
     const block = data.subarray(offset, offset + 16);
-    const decrypted = decryptBlockAuth(block, 1, scratch);
+    const decrypted = decryptBlockAuth(block, scratch);
     const decoded = Buffer.from(decrypted);
     xorInto(decoded, prev);
     decoded.copy(result, offset);
@@ -292,18 +288,13 @@ function encryptCbc(data, iv) {
   if (iv.length !== 16) {
     throw new Error('Bangcle CBC IV must be 16 bytes');
   }
-  const scratch = {
-    state32: new Uint8Array(32),
-    tmp32: new Uint8Array(32),
-    temp64: Buffer.alloc(64),
-    out: new Uint8Array(16),
-  };
+  const scratch = createScratch();
   const result = Buffer.alloc(data.length);
   let prev = Uint8Array.from(iv);
   for (let offset = 0; offset < data.length; offset += 16) {
     const block = Buffer.from(data.subarray(offset, offset + 16));
     xorInto(block, prev);
-    const encrypted = encryptBlockAuth(block, 10, scratch);
+    const encrypted = encryptBlockAuth(block, scratch);
     Buffer.from(encrypted).copy(result, offset);
     prev = Uint8Array.from(encrypted);
   }
@@ -359,16 +350,14 @@ function decodeEnvelope(base64) {
     throw new Error(`Bangcle ciphertext length ${ciphertext.length} is incompatible with 16-byte blocks`);
   }
 
-  const iv = Buffer.alloc(16, 0);
-  const plaintext = decryptCbc(ciphertext, iv);
+  const plaintext = decryptCbc(ciphertext, ZERO_IV);
   return stripPkcs7(plaintext);
 }
 
 function encodeEnvelope(plaintext) {
   const plainBuf = Buffer.isBuffer(plaintext) ? Buffer.from(plaintext) : Buffer.from(String(plaintext), 'utf8');
   const padded = addPkcs7(plainBuf);
-  const iv = Buffer.alloc(16, 0);
-  const ciphertext = encryptCbc(padded, iv);
+  const ciphertext = encryptCbc(padded, ZERO_IV);
   return `F${ciphertext.toString('base64')}`;
 }
 
