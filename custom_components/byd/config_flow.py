@@ -7,7 +7,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from pybyd import BydClient, BydConfig
+from .pybyd import BydClient, BydConfig
 
 from .const import (
     CONF_BASE_URL,

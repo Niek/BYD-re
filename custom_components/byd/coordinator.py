@@ -10,7 +10,7 @@ from typing import Any
 from aiohttp import ClientSession
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from pybyd import BydClient, BydConfig
+from .pybyd import BydClient, BydConfig
 
 from .const import DEFAULT_SCAN_INTERVAL
 
