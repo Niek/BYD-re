@@ -37,7 +37,9 @@ class BydDoorLock(BydEntity, LockEntity):
         known = [v for v in locks if v is not None]
         if not known:
             return None
-        return all(str(v) == "1" for v in known)
+        # Recent BYD payloads report door lock state as 2=locked, 1=unlocked.
+        # Keep string coercion for compatibility with legacy numeric/string payloads.
+        return all(str(v) == "2" for v in known)
 
     async def async_lock(self, **kwargs):
         await self.coordinator.async_lock()

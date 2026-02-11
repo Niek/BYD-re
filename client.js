@@ -1434,6 +1434,61 @@ function buildStatusHtml(output) {
         return 'warn';
       }
 
+      function mapChargingState(value) {
+        var num = asNumber(value);
+        if (num === -1 || num === 0) {
+          return 'not charging';
+        }
+        if (num === 1 || num === 2) {
+          return 'charging';
+        }
+        return formatValue(value);
+      }
+
+      function mapPowerState(value) {
+        var num = asNumber(value);
+        if (num === 2) {
+          return 'on';
+        }
+        if (num === 0 || num === 1) {
+          return 'off';
+        }
+        return formatValue(value);
+      }
+
+      function mapSentryStatus(value) {
+        var num = asNumber(value);
+        if (num === 2) {
+          return 'unlocked';
+        }
+        if (num === 0 || num === 1) {
+          return 'locked';
+        }
+        return formatValue(value);
+      }
+
+      function mapWindowState(value) {
+        var num = asNumber(value);
+        if (num === 2) {
+          return 'open';
+        }
+        if (num === 1 || num === 0) {
+          return 'closed';
+        }
+        return formatValue(value);
+      }
+
+      function mapAirRunState(value) {
+        var num = asNumber(value);
+        if (num === 2 || num === 0) {
+          return 'off';
+        }
+        if (num === 1) {
+          return 'on';
+        }
+        return formatValue(value);
+      }
+
       function toneForAge(msDiff) {
         if (!Number.isFinite(msDiff)) {
           return 'neutral';
@@ -1671,10 +1726,15 @@ function buildStatusHtml(output) {
         pick(vehicleInfo, ['enduranceMileage']),
         pick(vehicleInfo, ['evEndurance']),
       ]);
-      var chargeState = pick(vehicleInfo, ['chargingState', 'chargeState']);
+      var chargeStateRaw = pick(vehicleInfo, ['chargingState', 'chargeState']);
+      var chargeState = mapChargingState(chargeStateRaw);
       var speedRaw = pick(vehicleInfo, ['speed']);
       var connectState = pick(vehicleInfo, ['connectState']);
       var onlineLabel = mapOnlineState(pick(vehicleInfo, ['onlineState']));
+      var powerState = mapPowerState(pick(vehicleInfo, ['pwr', 'powerSystem']));
+      var sentryState = mapSentryStatus(pick(vehicleInfo, ['sentryStatus']));
+      var acState = mapAirRunState(pick(vehicleInfo, ['airRunState']));
+      var frontRightWindowState = mapWindowState(pick(vehicleInfo, ['rightFrontWindow']));
 
       var chargeHour = pick(vehicleInfo, ['remainingHours']);
       var chargeMinute = pick(vehicleInfo, ['remainingMinutes']);
@@ -1714,9 +1774,21 @@ function buildStatusHtml(output) {
         },
         {
           label: 'Charging',
-          value: formatValue(chargeState),
+          value: chargeState,
           detail: nonEmpty(chargeEta) ? ('ETA: ' + chargeEta) : 'No ETA reported',
           tone: toneForCharging(chargeState),
+        },
+        {
+          label: 'Cabin AC',
+          value: acState,
+          detail: 'airRunState=' + formatValue(pick(vehicleInfo, ['airRunState'])),
+          tone: acState === 'on' ? 'ok' : 'neutral',
+        },
+        {
+          label: 'Security',
+          value: sentryState,
+          detail: 'sentryStatus=' + formatValue(pick(vehicleInfo, ['sentryStatus'])),
+          tone: sentryState === 'unlocked' ? 'warn' : 'ok',
         },
         {
           label: 'GPS',
@@ -1738,6 +1810,10 @@ function buildStatusHtml(output) {
         ['Battery', formatPercent(batteryRaw)],
         ['Range', formatDistance(rangeRaw)],
         ['Charge state', chargeState],
+        ['Vehicle power', powerState],
+        ['Sentry / lock', sentryState],
+        ['Front right window', frontRightWindowState],
+        ['Cabin AC', acState],
         ['Total power', pick(vehicleInfo, ['totalPower'])],
         ['Inside temp', formatTemp(pick(vehicleInfo, ['tempInCar']))],
         ['Outside temp', formatTemp(pick(vehicleInfo, ['tempOutCar']))],
@@ -1759,10 +1835,10 @@ function buildStatusHtml(output) {
         ['Right front lock', pick(vehicleInfo, ['rightFrontDoorLock'])],
         ['Left rear lock', pick(vehicleInfo, ['leftRearDoorLock'])],
         ['Right rear lock', pick(vehicleInfo, ['rightRearDoorLock'])],
-        ['Left front window', pick(vehicleInfo, ['leftFrontWindow'])],
-        ['Right front window', pick(vehicleInfo, ['rightFrontWindow'])],
-        ['Left rear window', pick(vehicleInfo, ['leftRearWindow'])],
-        ['Right rear window', pick(vehicleInfo, ['rightRearWindow'])],
+        ['Left front window', mapWindowState(pick(vehicleInfo, ['leftFrontWindow']))],
+        ['Right front window', frontRightWindowState],
+        ['Left rear window', mapWindowState(pick(vehicleInfo, ['leftRearWindow']))],
+        ['Right rear window', mapWindowState(pick(vehicleInfo, ['rightRearWindow']))],
         ['Skylight', pick(vehicleInfo, ['skylight'])],
       ];
       renderRows('doors-content', doorRows);
