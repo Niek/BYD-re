@@ -3,10 +3,8 @@
   "name": "BYD",
   "codeowners": [],
   "config_flow": true,
-  "documentation": "https://github.com/jkaberg/pyBYD",
+  "documentation": "https://github.com/codyc1515/BYD-re",
   "iot_class": "cloud_polling",
-  "requirements": [
-    "pybyd==0.0.1"
-  ],
+  "requirements": [],
   "version": "0.1.0"
 }

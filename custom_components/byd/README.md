@@ -1,6 +1,6 @@
 # BYD Home Assistant Custom Component (draft)
 
-This custom component ports the `client.js` login + realtime + GPS flow into Home Assistant using Python, backed by `pybyd`.
+This custom component ports the `client.js` login + realtime + GPS flow into Home Assistant using Python, backed by a local `pybyd` package in this repository.
 
 ## Implemented entities
 
@@ -28,3 +28,7 @@ Generated `base_url`: `https://dilinkappoversea{suffix}.byd.auto`.
 ## Important note
 
 Some action endpoints/codes (windows-up, heated seats, smart-charge on/off) are exposed as entities but still require endpoint payload verification against additional app traces before command execution can be safely implemented.
+
+## Local pybyd
+
+A minimal `pybyd` package is included in the repo (`pybyd/`) and implements login, vehicle list, realtime, GPS and basic remote-control actions used by this integration.
