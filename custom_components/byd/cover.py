@@ -40,8 +40,8 @@ class BydWindowsCover(BydEntity, CoverEntity):
         known = [v for v in windows if v is not None]
         if not known:
             return None
-        # Expose reversed cover semantics in Home Assistant: windows closed => cover open.
-        return all(str(v) == "0" for v in known)
+        # BYD window mapping: 1=closed/up, 2=open/down.
+        return all(str(v) == "1" for v in known)
 
     async def async_open_cover(self, **kwargs):
         raise HomeAssistantError("Windows-up remote command code is not mapped yet")

@@ -57,11 +57,8 @@ class BydBinarySensor(BydEntity, BinarySensorEntity):
             values = [raw.get(k) for k in fields if raw.get(k) is not None]
             if not values:
                 return None
-            # BYD window encoding is inconsistent by model/region. In observed payloads:
-            #   1 = closed/up
-            #   2 = open/down
-            # Some payloads can still use 0 for open.
-            return any(str(v) in {"0", "2"} for v in values)
+            # BYD window mapping: 1=closed/up, 2=open/down.
+            return any(str(v) == "2" for v in values)
 
         if self.entity_description.key == "boot":
             value = raw.get("trunkLid")
