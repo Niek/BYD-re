@@ -8,7 +8,7 @@ This custom component ports the `client.js` login + realtime + GPS flow into Hom
 - Sensor: range (km)
 - Device tracker: GPS lat/lon
 - Lock: vehicle lock/unlock
-- Cover: windows state (close command placeholder)
+- Cover: windows state (open command placeholder)
 - Climate: on/off climate control
 - Switch: heated seats (placeholder)
 - Switch: charging toggle (placeholder)
