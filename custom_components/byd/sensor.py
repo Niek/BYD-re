@@ -69,11 +69,23 @@ class BydSensor(BydEntity, SensorEntity):
             temp = float(value)
             return None if temp == -129 else temp
         if self.entity_description.key == "charge_time_remaining":
-            hours = raw.get("remainingHours")
-            minutes = raw.get("remainingMinutes")
+            hours = self._parse_remaining_component(raw.get("remainingHours"), minimum=0)
+            minutes = self._parse_remaining_component(raw.get("remainingMinutes"), minimum=0, maximum=59)
             if hours is None and minutes is None:
                 return None
-            total_minutes = (int(float(hours)) if hours is not None else 0) * 60
-            total_minutes += int(float(minutes)) if minutes is not None else 0
+            total_minutes = (hours if hours is not None else 0) * 60
+            total_minutes += minutes if minutes is not None else 0
             return total_minutes
         return None
+
+    @staticmethod
+    def _parse_remaining_component(value, *, minimum: int, maximum: int | None = None) -> int | None:
+        """Parse and validate a charge remaining component from raw payload."""
+        if value is None:
+            return None
+        parsed = int(float(value))
+        if parsed < minimum:
+            return None
+        if maximum is not None and parsed > maximum:
+            return None
+        return parsed
