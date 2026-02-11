@@ -1,16 +1,18 @@
-# BYD Reverse Engineering
+# 🚗 BYD Reverse Engineering
 
 Reverse engineering of the BYD app HTTP crypto path used in the Android app.
 
 Base host: `https://dilinkappoversea-eu.byd.auto`
 
-## Related Project
+## 🔗 Related Project
 
 - [`pyBYD`](https://github.com/jkaberg/pyBYD): full Python library built from these reverse-engineering findings.
 
-## App & Transport Snapshot
+## 📱 App & Transport Snapshot
 
 - App: BYD overseas Android app (`com.byd.bydautolink`).
+- ⚠️ Hooking compatibility: `2.9.1` is the latest APK version that can be reliably hooked in this setup. Newer versions add Magisk/Zygote/LSPosed/root detection.
+- 🔓 Hookable APK (`2.9.1`): [APKPure download](https://apkpure.com/byd/com.byd.bydautolink/download/2.9.1)
 - Primary API host: `https://dilinkappoversea-eu.byd.auto`.
 - Client stack: Android + OkHttp (`user-agent: okhttp/4.12.0`).
 - API pattern: JSON-over-HTTP POST with encrypted payload wrapper.
@@ -21,7 +23,7 @@ Common request characteristics observed in hooks and mirrored by `client.js`:
 - `user-agent: okhttp/4.12.0`
 - cookie-backed session reuse across calls (client stores and replays returned cookies)
 
-## HTTP Envelope & Payload Shape
+## 📦 HTTP Envelope & Payload Shape
 
 All API calls use an outer wrapper:
 
@@ -61,7 +63,7 @@ Response-side decoded outer payload usually includes:
 }
 ```
 
-## Crypto Pipeline (How Encryption Works)
+## 🔐 Crypto Pipeline (How Encryption Works)
 
 Every BYD app call in this repo uses two crypto layers:
 
@@ -90,7 +92,7 @@ Every BYD app call in this repo uses two crypto layers:
 - `checkcode` is computed from `MD5(JSON.stringify(outerPayload))` with reordered chunks:
   - `[24:32] + [8:16] + [16:24] + [0:8]`
 
-## Use This First: Minimal Client
+## 🚀 Use This First: Minimal Client
 
 `client.js` is the main entrypoint (most useful path).
 
@@ -143,7 +145,7 @@ Optional `BYD_*` overrides:
 - `BYD_SDK`
 - `BYD_MOD`
 
-## Debugging / Offline Decode (`decompile.js`)
+## 🧪 Debugging / Offline Decode (`decompile.js`)
 
 Decode one payload:
 
@@ -177,7 +179,7 @@ Decode full hook flow:
 
 `xposed/http.sh` creates a temporary per-run decode-state file so keys learned from login are reused for later calls in the same flow. This is needed because each `node decompile.js` call is a separate process.
 
-## Decoder Key Strategy
+## 🧠 Decoder Key Strategy
 
 `http-dec` inner-field decryption order:
 1. static AES keys (`CONFIG_KEY`)
@@ -190,7 +192,7 @@ State behavior:
 - auto-learns `pwdLoginKey = MD5(MD5(signKey))` from login outer payload when present
 - auto-learns `contentKey = MD5(token.encryToken)` from decoded login `respondData`
 
-## Bangcle Tables
+## 🧩 Bangcle Tables
 
 Runtime uses embedded tables only.
 
@@ -201,7 +203,7 @@ Runtime uses embedded tables only.
 node scripts/generate_bangcle_auth_tables.js
 ```
 
-## Project Map
+## 🗺️ Project Map
 
 - `client.js`: minimal login + vehicle list + realtime poll + GPS client.
 - `decompile.js`: decoder/encoder CLI (debugging/analysis).
@@ -212,7 +214,7 @@ node scripts/generate_bangcle_auth_tables.js
 - `xposed/http.sh`: decode helper for `HTTP method=` log lines.
 - `xposed/src/*`: Xposed hook module source (Java hooks, resources, manifest).
 
-## Security
+## 🛡️ Security
 
 Do not commit real credentials, raw personal logs, or decrypted personal data.
 `xposed/samples/raw_hooks.log` can contain plaintext identifiers and passwords.
