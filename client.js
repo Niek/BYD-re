@@ -1351,7 +1351,7 @@ function buildStatusHtml(output) {
         if (num === null) {
           return formatValue(value);
         }
-        return Number.isInteger(num) ? String(num) + ' km' : num.toFixed(1) + ' km';
+        return String(Math.round(num)) + ' km';
       }
 
       function formatPercent(value) {
@@ -1359,7 +1359,7 @@ function buildStatusHtml(output) {
         if (num === null) {
           return formatValue(value);
         }
-        return Number.isInteger(num) ? String(num) + '%' : num.toFixed(1) + '%';
+        return String(Math.round(num)) + '%';
       }
 
       function formatTemp(value) {
