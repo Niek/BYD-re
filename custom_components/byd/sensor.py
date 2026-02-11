@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfLength, PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -12,7 +12,7 @@ from .const import DOMAIN
 from .entity import BydEntity
 
 SENSORS = [
-    SensorEntityDescription(key="battery", name="Battery", native_unit_of_measurement=PERCENTAGE),
+    SensorEntityDescription(key="battery", name="Battery", native_unit_of_measurement=PERCENTAGE, device_class=SensorDeviceClass.BATTERY),
     SensorEntityDescription(key="range", name="Range", native_unit_of_measurement=UnitOfLength.KILOMETERS),
 ]
 

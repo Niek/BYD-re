@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorEntityDescription
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -11,10 +15,10 @@ from .const import DOMAIN
 from .entity import BydEntity
 
 BINARY_SENSORS = [
-    BinarySensorEntityDescription(key="bonnet", name="Front Bonnet Open"),
-    BinarySensorEntityDescription(key="doors", name="Doors Open"),
-    BinarySensorEntityDescription(key="windows", name="Windows Open"),
-    BinarySensorEntityDescription(key="boot", name="Boot Open"),
+    BinarySensorEntityDescription(key="bonnet", name="Front Bonnet"),
+    BinarySensorEntityDescription(key="doors", name="Doors", device_class=BinarySensorDeviceClass.DOOR),
+    BinarySensorEntityDescription(key="windows", name="Windows", device_class=BinarySensorDeviceClass.WINDOW),
+    BinarySensorEntityDescription(key="boot", name="Boot", device_class=BinarySensorDeviceClass.OPENING),
 ]
 
 
@@ -47,7 +51,7 @@ class BydBinarySensor(BydEntity, BinarySensorEntity):
         if self.entity_description.key == "windows":
             fields = ["leftFrontWindow", "rightFrontWindow", "leftRearWindow", "rightRearWindow", "skylight"]
             values = [raw.get(k) for k in fields if raw.get(k) is not None]
-            return None if not values else any(str(v) == "1" for v in values)
+            return None if not values else any(str(v) == "0" for v in values)
 
         if self.entity_description.key == "boot":
             value = raw.get("trunkLid")
