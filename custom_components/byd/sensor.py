@@ -37,7 +37,16 @@ SENSORS = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(BydSensor(coordinator, desc) for desc in SENSORS)
+    raw = coordinator.realtime_raw()
+    outside_temp = _parse_temperature(raw.get("tempOutCar"))
+
+    descriptions = [
+        desc
+        for desc in SENSORS
+        if desc.key != "inside_temperature" or outside_temp is not None
+    ]
+
+    async_add_entities(BydSensor(coordinator, desc) for desc in descriptions)
 
 
 class BydSensor(BydEntity, SensorEntity):
@@ -57,17 +66,21 @@ class BydSensor(BydEntity, SensorEntity):
         if self.entity_description.key == "range":
             return rt.endurance_mileage
         if self.entity_description.key == "inside_temperature":
-            value = raw.get("tempInCar")
-            if value is None:
+            inside_temp = _parse_temperature(raw.get("tempInCar"))
+            if inside_temp is None:
                 return None
-            temp = float(value)
-            return None if temp == -129 else temp
+
+            outside_temp = _parse_temperature(raw.get("tempOutCar"))
+            if outside_temp is None:
+                return None
+
+            return inside_temp
         if self.entity_description.key == "outside_temperature":
-            value = raw.get("tempOutCar")
-            if value is None:
-                return None
-            temp = float(value)
-            return None if temp == -129 else temp
+            outside_temp = _parse_temperature(raw.get("tempOutCar"))
+            if outside_temp is not None:
+                return outside_temp
+
+            return _parse_temperature(raw.get("tempInCar"))
         if self.entity_description.key == "charge_time_remaining":
             hours = raw.get("remainingHours")
             minutes = raw.get("remainingMinutes")
@@ -77,3 +90,10 @@ class BydSensor(BydEntity, SensorEntity):
             total_minutes += int(float(minutes)) if minutes is not None else 0
             return total_minutes
         return None
+
+
+def _parse_temperature(value: float | str | None) -> float | None:
+    if value is None:
+        return None
+    temp = float(value)
+    return None if temp == -129 else temp

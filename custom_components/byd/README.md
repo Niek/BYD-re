@@ -6,8 +6,7 @@ This custom component ports the `client.js` login + realtime + GPS flow into Hom
 
 - Sensor: battery percent
 - Sensor: range (km)
-- Sensor: inside temperature
-- Sensor: outside temperature
+- Sensor: outside temperature (falls back to cabin temperature when unavailable)
 - Sensor: charge time remaining (minutes)
 - Device tracker: GPS lat/lon
 - Lock: vehicle lock/unlock
