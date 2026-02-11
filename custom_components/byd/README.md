@@ -29,7 +29,6 @@ Generated `base_url`: `https://dilinkappoversea{suffix}.byd.auto`.
 
 Some action endpoints/codes (windows-up, heated seats, smart-charge on/off) are exposed as entities but still require endpoint payload verification against additional app traces before command execution can be safely implemented.
 
-
 ## Local pybyd
 
 A minimal `pybyd` package is included in the repo (`pybyd/`) and implements login, vehicle list, realtime, GPS and basic remote-control actions used by this integration.
