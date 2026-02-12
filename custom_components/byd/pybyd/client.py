@@ -145,16 +145,15 @@ class BydClient:
             "vin": vin,
         }
         if resolved_command_pwd:
+            # Match app behavior: only include commandPwd when non-empty.
             payload["commandPwd"] = resolved_command_pwd
         if control_params_map is not None:
             if isinstance(control_params_map, str):
                 payload["controlParamsMap"] = control_params_map
             else:
                 payload["controlParamsMap"] = json.dumps(
-                    {k: control_params_map[k] for k in sorted(control_params_map)},
-                    separators=(",", ":"),
+                    {k: control_params_map[k] for k in sorted(control_params_map)}
                 )
-
         data = await self._poll_data(
             "/control/remoteControl",
             "/control/remoteControlResult",
