@@ -7,7 +7,8 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.helpers import selector
 from .pybyd import BydClient, BydConfig
 
 from .const import (
@@ -31,22 +32,22 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            region = user_input[CONF_SERVER_REGION].strip()
+            region = f"-{user_input[CONF_SERVER_REGION].strip().lstrip('-').lower()}"
             base_url = f"https://dilinkappoversea{region}.byd.auto"
 
             LOGGER.debug(
                 "Starting config flow validation for user=%s region=%s base_url=%s country_code=%s",
-                user_input[CONF_USERNAME],
+                user_input[CONF_EMAIL],
                 region,
                 base_url,
                 user_input[CONF_COUNTRY_CODE],
             )
 
             config = BydConfig(
-                username=user_input[CONF_USERNAME],
-                password=user_input[CONF_PASSWORD],
-                country_code=user_input[CONF_COUNTRY_CODE],
+                user_input[CONF_EMAIL],
+                user_input[CONF_PASSWORD],
                 base_url=base_url,
+                country_code=user_input[CONF_COUNTRY_CODE],
             )
 
             try:
@@ -57,25 +58,25 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception:
                 LOGGER.exception(
                     "BYD login failed during config flow for user=%s region=%s base_url=%s",
-                    user_input[CONF_USERNAME],
+                    user_input[CONF_EMAIL],
                     region,
                     base_url,
                 )
                 errors["base"] = "cannot_connect"
             else:
                 await self.async_set_unique_id(
-                    f"{user_input[CONF_USERNAME]}:{base_url}"
+                    f"{user_input[CONF_EMAIL]}:{base_url}"
                 )
                 self._abort_if_unique_id_configured()
                 LOGGER.debug(
                     "Creating config entry for user=%s base_url=%s",
-                    user_input[CONF_USERNAME],
+                    user_input[CONF_EMAIL],
                     base_url,
                 )
                 return self.async_create_entry(
-                    title=f"BYD ({user_input[CONF_USERNAME]})",
+                    title=f"BYD ({user_input[CONF_EMAIL]})",
                     data={
-                        CONF_USERNAME: user_input[CONF_USERNAME],
+                        CONF_EMAIL: user_input[CONF_EMAIL],
                         CONF_PASSWORD: user_input[CONF_PASSWORD],
                         CONF_COUNTRY_CODE: user_input[CONF_COUNTRY_CODE],
                         CONF_SERVER_REGION: region,
@@ -85,10 +86,18 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_USERNAME): str,
+                vol.Required(CONF_EMAIL): str,
                 vol.Required(CONF_PASSWORD): str,
                 vol.Required(CONF_COUNTRY_CODE, default=DEFAULT_COUNTRY_CODE): str,
-                vol.Required(CONF_SERVER_REGION, default=DEFAULT_SERVER_REGION): str,
+                vol.Required(
+                    CONF_SERVER_REGION,
+                    default=DEFAULT_SERVER_REGION.lstrip("-"),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=["eu", "au"],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
             }
         )
 

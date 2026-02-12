@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -20,7 +20,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     LOGGER.debug("Setting up BYD entry_id=%s title=%s", entry.entry_id, entry.title)
     coordinator = BydDataCoordinator(
         hass=hass,
-        username=entry.data[CONF_USERNAME],
+        email=entry.data[CONF_EMAIL],
         password=entry.data[CONF_PASSWORD],
         country_code=entry.data[CONF_COUNTRY_CODE],
         base_url=entry.data[CONF_BASE_URL],
