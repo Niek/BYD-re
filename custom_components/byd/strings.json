@@ -1,7 +1,53 @@
 {
   "config": {
+    "step": {
+      "user": {
+        "title": "Account details",
+        "description": "Enter your BYD account credentials and control PIN.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "control_pin": "Control PIN"
+        }
+      },
+      "server": {
+        "title": "Server region",
+        "description": "Select the BYD server region for your account.",
+        "data": {
+          "server_region": "Server region"
+        }
+      },
+      "reconfigure": {
+        "title": "Update account details",
+        "description": "Update your BYD account credentials and control PIN.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "control_pin": "Control PIN"
+        }
+      },
+      "reconfigure_server": {
+        "title": "Update server region",
+        "description": "Select the BYD server region for your account.",
+        "data": {
+          "server_region": "Server region"
+        }
+      }
+    },
     "error": {
-      "cannot_connect": "Failed to connect to the BYD service."
+      "cannot_connect": "Failed to connect to the BYD service.",
+      "already_configured": "This account and server region are already configured."
+    },
+    "abort": {
+      "reconfigure_successful": "BYD configuration updated successfully."
+    }
+  },
+  "selector": {
+    "server_region": {
+      "options": {
+        "eu": "Europe",
+        "au": "Australia"
+      }
     }
   }
 }
