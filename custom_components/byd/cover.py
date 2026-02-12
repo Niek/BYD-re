@@ -40,8 +40,9 @@ class BydWindowsCover(BydEntity, CoverEntity):
         known = [v for v in windows if v is not None]
         if not known:
             return None
-        # BYD window mapping: 1=closed/up, 2=open/down.
-        return all(str(v) == "1" for v in known)
+        # BYD window mapping for the Home Assistant cover entity:
+        # 1 = closed/up, 2 = open/down.
+        return all(str(v).strip() == "1" for v in known)
 
     async def async_open_cover(self, **kwargs):
         raise HomeAssistantError("Window control is not mapped to the BYD API yet")
