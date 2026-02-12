@@ -24,6 +24,8 @@ class BydDoorLock(BydEntity, LockEntity):
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{self.unique_base}_door_lock"
+        self._attr_is_locking = False
+        self._attr_is_unlocking = False
 
     @staticmethod
     def _door_lock_values(raw: dict) -> list[str]:
@@ -53,7 +55,21 @@ class BydDoorLock(BydEntity, LockEntity):
         return known[0] == "2"
 
     async def async_lock(self, **kwargs):
-        await self.coordinator.async_lock(command_pwd=kwargs.get("code"))
+        self._attr_is_locking = True
+        self._attr_is_unlocking = False
+        self.async_write_ha_state()
+        try:
+            await self.coordinator.async_lock(command_pwd=kwargs.get("code"))
+        finally:
+            self._attr_is_locking = False
+            self.async_write_ha_state()
 
     async def async_unlock(self, **kwargs):
-        await self.coordinator.async_unlock(command_pwd=kwargs.get("code"))
+        self._attr_is_unlocking = True
+        self._attr_is_locking = False
+        self.async_write_ha_state()
+        try:
+            await self.coordinator.async_unlock(command_pwd=kwargs.get("code"))
+        finally:
+            self._attr_is_unlocking = False
+            self.async_write_ha_state()
