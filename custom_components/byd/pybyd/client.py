@@ -187,12 +187,12 @@ class BydClient:
     async def stop_climate(self, vin: str, **kwargs: Any) -> RemoteControlResult:
         return await self.remote_control(vin, RemoteCommand.STOP_CLIMATE, **kwargs)
 
-    def _resolve_command_pwd(self, command_pwd: str | None) -> str:
+    def _resolve_command_pwd(self, command_pwd: str | None) -> str | None:
         """Resolve command password to MD5 uppercase hash expected by remote control API."""
         if command_pwd is not None:
             value = str(command_pwd).strip()
             if not value:
-                return ""
+                return None
             if len(value) == 32 and all(ch in "0123456789abcdefABCDEF" for ch in value):
                 return value.upper()
             return self._md5(value)
@@ -200,7 +200,15 @@ class BydClient:
         configured = (self._config.control_pin or "").strip()
         if configured:
             return self._md5(configured)
-        return ""
+        return None
+
+    @staticmethod
+    def _serialize_control_params_map(control_params_map: dict[str, Any] | str) -> str:
+        """Serialize controlParamsMap using a deterministic/sorted JSON representation."""
+        if isinstance(control_params_map, str):
+            return control_params_map
+        sorted_map = {key: control_params_map[key] for key in sorted(control_params_map)}
+        return json.dumps(sorted_map, separators=(",", ":"))
 
     async def _poll_realtime_endpoint(
         self,
