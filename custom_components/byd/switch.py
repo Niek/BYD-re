@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -57,6 +57,7 @@ class BydChargingSwitch(BydEntity, SwitchEntity):
     """Charging toggle (placeholder command mapping)."""
 
     _attr_name = "Charging"
+    _attr_device_class = SwitchDeviceClass.OUTLET
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
