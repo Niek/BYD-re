@@ -80,7 +80,7 @@ class BydSensor(BydEntity, SensorEntity):
             value = rt.endurance_mileage
             return None if value is None else round(float(value))
         if self.entity_description.key == "outside_temperature":
-            return _first_temperature(raw, "tempInCar", "insideTemperature")
+            return _first_temperature(raw, "tempInCar")
         if self.entity_description.key == "charge_time_remaining":
             hours = self._parse_remaining_component(raw.get("remainingHours"), minimum=0)
             minutes = self._parse_remaining_component(raw.get("remainingMinutes"), minimum=0, maximum=59)
