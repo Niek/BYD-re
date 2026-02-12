@@ -11,8 +11,17 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .entity import BydEntity
 
+WINDOW_FIELDS = {
+    "left_front": "leftFrontWindow",
+    "right_front": "rightFrontWindow",
+    "left_rear": "leftRearWindow",
+    "right_rear": "rightRearWindow",
+    "sunroof": "skylight",
+}
+
 BINARY_SENSORS = [
     BinarySensorEntityDescription(key="doors", name="Doors", device_class=BinarySensorDeviceClass.DOOR),
+    BinarySensorEntityDescription(key="windows", name="Windows", device_class=BinarySensorDeviceClass.WINDOW),
     BinarySensorEntityDescription(key="boot", name="Boot", device_class=BinarySensorDeviceClass.OPENING),
     BinarySensorEntityDescription(key="charging", name="Charging", device_class=BinarySensorDeviceClass.BATTERY_CHARGING),
     BinarySensorEntityDescription(
@@ -45,6 +54,26 @@ class BydBinarySensor(BydEntity, BinarySensorEntity):
             fields = ["leftFrontDoor", "rightFrontDoor", "leftRearDoor", "rightRearDoor"]
             values = [raw.get(k) for k in fields if raw.get(k) is not None]
             return None if not values else any(str(v) == "1" for v in values)
+
+        if self.entity_description.key == "windows":
+            values_by_type = {
+                window_type: raw.get(field)
+                for window_type, field in WINDOW_FIELDS.items()
+                if raw.get(field) is not None
+            }
+            if not values_by_type:
+                self._attr_extra_state_attributes = None
+                return None
+
+            open_window_types = [
+                window_type for window_type, value in values_by_type.items() if str(value).strip() == "2"
+            ]
+            self._attr_extra_state_attributes = {
+                "window_type": "multiple" if len(open_window_types) > 1 else (open_window_types[0] if open_window_types else "all_closed"),
+                "open_window_types": open_window_types,
+            }
+            # BYD window mapping: 1 = up/closed, 2 = down/open.
+            return bool(open_window_types)
 
         if self.entity_description.key == "boot":
             value = raw.get("trunkLid")

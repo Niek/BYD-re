@@ -14,7 +14,7 @@ from .entity import BydEntity
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([BydFlashLightsButton(coordinator), BydAlarmButton(coordinator)])
+    async_add_entities([BydFlashLightsButton(coordinator), BydAlarmButton(coordinator), BydWindowUpButton(coordinator)])
 
 
 class BydFlashLightsButton(BydEntity, ButtonEntity):
@@ -45,3 +45,18 @@ class BydAlarmButton(BydEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         raise HomeAssistantError("Alarm control is not mapped to the BYD API yet")
+
+
+class BydWindowUpButton(BydEntity, ButtonEntity):
+    """Vehicle window up button."""
+
+    _attr_name = "Window Up"
+    # Action endpoints are not fully mapped yet, so keep buttons disabled by default.
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{self.unique_base}_window_up"
+
+    async def async_press(self) -> None:
+        raise HomeAssistantError("Window-up control is not mapped to the BYD API yet")
