@@ -63,7 +63,9 @@ cleanup_logcat
 trap - EXIT
 
 echo "Reconstructing logcat output..."
-sed -En '
+# macOS/BSD sed will error ("RE error: illegal byte sequence") if logcat output contains
+# invalid UTF-8/control bytes (some BYD payloads include these). Force bytewise processing.
+LC_ALL=C sed -En '
   / CHUNK [0-9]+ 1\/[0-9]+ len=[0-9]+ /{
     h
     :chunk
