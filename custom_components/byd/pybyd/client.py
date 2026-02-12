@@ -129,6 +129,7 @@ class BydClient:
         command: RemoteCommand,
         *,
         command_pwd: str | None = None,
+        control_params_map: dict[str, Any] | str | None = None,
         poll_attempts: int = 10,
         poll_interval: float = 1.5,
     ) -> RemoteControlResult:
@@ -142,8 +143,13 @@ class BydClient:
             "timeStamp": str(self._now_ms()),
             "version": self._config.app_inner_version,
             "vin": vin,
-            "commandPwd": resolved_command_pwd,
         }
+        # Match app behavior: only include commandPwd when a non-empty pin is available.
+        if resolved_command_pwd:
+            payload["commandPwd"] = resolved_command_pwd
+        if control_params_map is not None:
+            payload["controlParamsMap"] = self._serialize_control_params_map(control_params_map)
+
         data = await self._poll_data(
             "/control/remoteControl",
             "/control/remoteControlResult",
@@ -191,6 +197,14 @@ class BydClient:
         if configured:
             return self._md5(configured)
         return ""
+
+    @staticmethod
+    def _serialize_control_params_map(control_params_map: dict[str, Any] | str) -> str:
+        """Serialize controlParamsMap using a deterministic/sorted JSON representation."""
+        if isinstance(control_params_map, str):
+            return control_params_map
+        sorted_map = {key: control_params_map[key] for key in sorted(control_params_map)}
+        return json.dumps(sorted_map, separators=(",", ":"))
 
     async def _poll_realtime_endpoint(
         self,
