@@ -12,7 +12,6 @@ from .const import DOMAIN
 from .entity import BydEntity
 
 BINARY_SENSORS = [
-    BinarySensorEntityDescription(key="bonnet", name="Front Bonnet"),
     BinarySensorEntityDescription(key="doors", name="Doors", device_class=BinarySensorDeviceClass.DOOR),
     BinarySensorEntityDescription(key="boot", name="Boot", device_class=BinarySensorDeviceClass.OPENING),
     BinarySensorEntityDescription(key="charging", name="Charging", device_class=BinarySensorDeviceClass.BATTERY_CHARGING),
@@ -41,10 +40,6 @@ class BydBinarySensor(BydEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         raw = self.coordinator.realtime_raw()
-
-        if self.entity_description.key == "bonnet":
-            value = raw.get("engineCover")
-            return None if value is None else str(value) == "1"
 
         if self.entity_description.key == "doors":
             fields = ["leftFrontDoor", "rightFrontDoor", "leftRearDoor", "rightRearDoor"]
