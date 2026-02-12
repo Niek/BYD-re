@@ -23,7 +23,7 @@ SENSORS = [
     ),
     SensorEntityDescription(
         key="charge_time_remaining",
-        name="Charge Time Remaining",
+        name="Charging Time Remaining",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         device_class=SensorDeviceClass.DURATION,
     ),
