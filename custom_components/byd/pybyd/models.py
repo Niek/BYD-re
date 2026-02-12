@@ -8,13 +8,13 @@ from typing import Any
 
 
 class RemoteCommand(StrEnum):
-    LOCK = "101"
-    UNLOCK = "102"
-    START_CLIMATE = "111"
-    STOP_CLIMATE = "112"
-    FLASH_LIGHTS = "301"
-    HORN = "302"
-    CLOSE_WINDOWS = "141"
+    LOCK = "LOCKDOOR"
+    UNLOCK = "OPENDOOR"
+    START_CLIMATE = "OPENAIR"
+    STOP_CLIMATE = "CLOSEAIR"
+    FLASH_LIGHTS = "FLASHLIGHTNOWHISTLE"
+    HORN = "FINDCAR"
+    CLOSE_WINDOWS = "CLOSEWINDOW"
 
 
 @dataclass(slots=True)
