@@ -144,11 +144,16 @@ class BydClient:
             "version": self._config.app_inner_version,
             "vin": vin,
         }
-        # Match app behavior: only include commandPwd when a non-empty pin is available.
         if resolved_command_pwd:
             payload["commandPwd"] = resolved_command_pwd
         if control_params_map is not None:
-            payload["controlParamsMap"] = self._serialize_control_params_map(control_params_map)
+            if isinstance(control_params_map, str):
+                payload["controlParamsMap"] = control_params_map
+            else:
+                payload["controlParamsMap"] = json.dumps(
+                    {k: control_params_map[k] for k in sorted(control_params_map)},
+                    separators=(",", ":"),
+                )
 
         data = await self._poll_data(
             "/control/remoteControl",
@@ -183,12 +188,12 @@ class BydClient:
     async def stop_climate(self, vin: str, **kwargs: Any) -> RemoteControlResult:
         return await self.remote_control(vin, RemoteCommand.STOP_CLIMATE, **kwargs)
 
-    def _resolve_command_pwd(self, command_pwd: str | None) -> str:
+    def _resolve_command_pwd(self, command_pwd: str | None) -> str | None:
         """Resolve command password to MD5 uppercase hash expected by remote control API."""
         if command_pwd is not None:
             value = str(command_pwd).strip()
             if not value:
-                return ""
+                return None
             if len(value) == 32 and all(ch in "0123456789abcdefABCDEF" for ch in value):
                 return value.upper()
             return self._md5(value)
@@ -196,7 +201,7 @@ class BydClient:
         configured = (self._config.control_pin or "").strip()
         if configured:
             return self._md5(configured)
-        return ""
+        return None
 
     @staticmethod
     def _serialize_control_params_map(control_params_map: dict[str, Any] | str) -> str:
