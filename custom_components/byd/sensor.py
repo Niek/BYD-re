@@ -19,12 +19,14 @@ SENSORS = [
         name="Inside Temperature",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
+        suggested_display_precision=0,
     ),
     SensorEntityDescription(
         key="outside_temperature",
         name="Outside Temperature",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
+        suggested_display_precision=0,
     ),
     SensorEntityDescription(
         key="charge_time_remaining",
@@ -51,6 +53,14 @@ def _first_temperature(raw: dict, *keys: str) -> float | None:
         if parsed is not None:
             return parsed
     return None
+
+
+def _temperature_without_decimals(raw: dict, *keys: str) -> int | None:
+    """Return rounded temperature without decimals from the given payload keys."""
+    temperature = _first_temperature(raw, *keys)
+    if temperature is None:
+        return None
+    return round(temperature)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -86,13 +96,13 @@ class BydSensor(BydEntity, SensorEntity):
             value = rt.endurance_mileage
             return None if value is None else round(float(value))
         if self.entity_description.key == "inside_temperature":
-            return _first_temperature(raw, "tempInCar", "insideTemperature")
+            return _temperature_without_decimals(raw, "tempInCar", "insideTemperature")
         if self.entity_description.key == "outside_temperature":
-            outside_temp = _first_temperature(raw, "tempOutCar", "outsideTemperature")
+            outside_temp = _temperature_without_decimals(raw, "tempOutCar", "outsideTemperature")
             if outside_temp is not None:
                 return outside_temp
 
-            return _first_temperature(raw, "tempInCar", "insideTemperature")
+            return _temperature_without_decimals(raw, "tempInCar", "insideTemperature")
         if self.entity_description.key == "charge_time_remaining":
             hours = self._parse_remaining_component(raw.get("remainingHours"), minimum=0)
             minutes = self._parse_remaining_component(raw.get("remainingMinutes"), minimum=0, maximum=59)
