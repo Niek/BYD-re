@@ -134,7 +134,6 @@ class BydClient:
     ) -> RemoteControlResult:
         resolved_command_pwd = self._resolve_command_pwd(command_pwd)
         payload = {
-            "instructionCode": command.value,
             "commandType": command.value,
             "deviceType": self._config.device.device_type,
             "imeiMD5": self._config.device.imei_md5,
@@ -145,8 +144,6 @@ class BydClient:
             "vin": vin,
             "commandPwd": resolved_command_pwd,
         }
-        if resolved_command_pwd:
-            payload["commandPwd"] = resolved_command_pwd
         data = await self._poll_data(
             "/control/remoteControl",
             "/control/remoteControlResult",
@@ -180,12 +177,20 @@ class BydClient:
     async def stop_climate(self, vin: str, **kwargs: Any) -> RemoteControlResult:
         return await self.remote_control(vin, RemoteCommand.STOP_CLIMATE, **kwargs)
 
-    @staticmethod
-    def _resolve_command_pwd(command_pwd: str | None) -> str:
-        """Return optional command password unchanged except for whitespace trimming."""
-        if not command_pwd:
-            return ""
-        return str(command_pwd).strip()
+    def _resolve_command_pwd(self, command_pwd: str | None) -> str:
+        """Resolve command password to MD5 uppercase hash expected by remote control API."""
+        if command_pwd is not None:
+            value = str(command_pwd).strip()
+            if not value:
+                return ""
+            if len(value) == 32 and all(ch in "0123456789abcdefABCDEF" for ch in value):
+                return value.upper()
+            return self._md5(value)
+
+        configured = (self._config.control_pin or "").strip()
+        if configured:
+            return self._md5(configured)
+        return ""
 
     async def _poll_realtime_endpoint(
         self,
