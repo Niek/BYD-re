@@ -203,6 +203,14 @@ class BydClient:
             return self._md5(configured)
         return None
 
+    @staticmethod
+    def _serialize_control_params_map(control_params_map: dict[str, Any] | str) -> str:
+        """Serialize controlParamsMap using a deterministic/sorted JSON representation."""
+        if isinstance(control_params_map, str):
+            return control_params_map
+        sorted_map = {key: control_params_map[key] for key in sorted(control_params_map)}
+        return json.dumps(sorted_map, separators=(",", ":"))
+
     async def _poll_realtime_endpoint(
         self,
         vin: str,
