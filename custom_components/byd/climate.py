@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from homeassistant.components.climate import ClimateEntity
-from homeassistant.components.climate.const import HVACMode
+from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode
 from homeassistant.const import UnitOfTemperature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -25,9 +25,7 @@ class BydClimate(BydEntity, ClimateEntity):
 
     _attr_name = "Climate"
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL]
-    # Home Assistant's climate capability handling expects an iterable of
-    # ClimateEntityFeature values (even when empty).
-    _attr_supported_features: tuple = ()
+    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
     def __init__(self, coordinator) -> None:
@@ -63,3 +61,6 @@ class BydClimate(BydEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         raise HomeAssistantError("Climate control is not mapped to the BYD API yet")
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        raise HomeAssistantError("Setting climate temperature is not mapped to the BYD API yet")
