@@ -1,9 +1,5 @@
 {
-  "name": "BYD",
-  "domains": [
-    "byd"
-  ],
+  "name": "BYD Vehicle",
   "content_in_root": false,
-  "render_readme": true,
-  "homeassistant": "2024.1.0"
+  "render_readme": true
 }
