@@ -123,11 +123,18 @@ class BydClient:
         )
         return data
 
-    async def remote_control(self, vin: str, command: RemoteCommand, *, poll_attempts: int = 10, poll_interval: float = 1.5) -> RemoteControlResult:
+    async def remote_control(
+        self,
+        vin: str,
+        command: RemoteCommand,
+        *,
+        poll_attempts: int = 10,
+        poll_interval: float = 1.5,
+    ) -> RemoteControlResult:
         payload = {
+            "instructionCode": command.value,
             "deviceType": self._config.device.device_type,
             "imeiMD5": self._config.device.imei_md5,
-            "instructionCode": command.value,
             "networkType": self._config.device.network_type,
             "random": self._random_hex16(),
             "timeStamp": str(self._now_ms()),
@@ -157,6 +164,9 @@ class BydClient:
 
     async def honk_horn(self, vin: str, **kwargs: Any) -> RemoteControlResult:
         return await self.remote_control(vin, RemoteCommand.HORN, **kwargs)
+
+    async def close_windows(self, vin: str, **kwargs: Any) -> RemoteControlResult:
+        return await self.remote_control(vin, RemoteCommand.CLOSE_WINDOWS, **kwargs)
 
     async def start_climate(self, vin: str, **kwargs: Any) -> RemoteControlResult:
         return await self.remote_control(vin, RemoteCommand.START_CLIMATE, **kwargs)
