@@ -57,7 +57,13 @@ class BydClimate(BydEntity, ClimateEntity):
             temp = float(value)
         except (TypeError, ValueError):
             return None
-        return None if temp == -129 else temp
+        if temp == -129:
+            return None
+        # Some BYD payloads report 0 when HVAC is off and no set point is available.
+        # Returning None avoids showing a misleading 0°C target in Home Assistant.
+        if temp == 0 and self.hvac_mode == HVACMode.OFF:
+            return None
+        return temp
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         raise HomeAssistantError("Climate control is not mapped to the BYD API yet")
