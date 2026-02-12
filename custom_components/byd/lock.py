@@ -53,7 +53,7 @@ class BydDoorLock(BydEntity, LockEntity):
         return known[0] == "2"
 
     async def async_lock(self, **kwargs):
-        await self.coordinator.async_lock()
+        await self.coordinator.async_lock(command_pwd=kwargs.get("code"))
 
     async def async_unlock(self, **kwargs):
-        await self.coordinator.async_unlock()
+        await self.coordinator.async_unlock(command_pwd=kwargs.get("code"))

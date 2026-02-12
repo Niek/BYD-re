@@ -14,6 +14,7 @@ from .pybyd import BydClient, BydConfig
 from .const import (
     CONF_BASE_URL,
     CONF_COUNTRY_CODE,
+    CONF_CONTROL_PIN,
     CONF_SERVER_REGION,
     DEFAULT_COUNTRY_CODE,
     DEFAULT_SERVER_REGION,
@@ -48,6 +49,7 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 user_input[CONF_PASSWORD],
                 base_url=base_url,
                 country_code=user_input[CONF_COUNTRY_CODE],
+                control_pin=user_input.get(CONF_CONTROL_PIN) or None,
             )
 
             try:
@@ -81,6 +83,7 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_COUNTRY_CODE: user_input[CONF_COUNTRY_CODE],
                         CONF_SERVER_REGION: region,
                         CONF_BASE_URL: base_url,
+                        CONF_CONTROL_PIN: user_input.get(CONF_CONTROL_PIN) or "",
                     },
                 )
 
@@ -89,6 +92,7 @@ class BydConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_EMAIL): str,
                 vol.Required(CONF_PASSWORD): str,
                 vol.Required(CONF_COUNTRY_CODE, default=DEFAULT_COUNTRY_CODE): str,
+                vol.Optional(CONF_CONTROL_PIN): str,
                 vol.Required(
                     CONF_SERVER_REGION,
                     default=DEFAULT_SERVER_REGION.lstrip("-"),

@@ -55,12 +55,14 @@ class BydDataCoordinator(DataUpdateCoordinator[BydSnapshot]):
         base_url: str,
         vin: str | None,
         session: ClientSession,
+        control_pin: str | None = None,
     ) -> None:
         config = BydConfig(
             email,
             password,
             base_url=base_url,
             country_code=country_code,
+            control_pin=control_pin,
         )
         self.client = BydClient(config=config, session=session)
         self._vin = vin
@@ -161,17 +163,17 @@ class BydDataCoordinator(DataUpdateCoordinator[BydSnapshot]):
             self._logger.exception("BYD data refresh failed: %s", err)
             raise UpdateFailed(str(err)) from err
 
-    async def async_lock(self) -> None:
+    async def async_lock(self, *, command_pwd: str | None = None) -> None:
         self._logger.debug("Sending lock command for VIN=%s", self.data.vin)
-        await self.client.lock(self.data.vin)
+        await self.client.lock(self.data.vin, command_pwd=command_pwd)
         self._logger.debug(
             "Lock command completed for VIN=%s; requesting refresh", self.data.vin
         )
         await self.async_request_refresh()
 
-    async def async_unlock(self) -> None:
+    async def async_unlock(self, *, command_pwd: str | None = None) -> None:
         self._logger.debug("Sending unlock command for VIN=%s", self.data.vin)
-        await self.client.unlock(self.data.vin)
+        await self.client.unlock(self.data.vin, command_pwd=command_pwd)
         self._logger.debug(
             "Unlock command completed for VIN=%s; requesting refresh", self.data.vin
         )

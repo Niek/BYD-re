@@ -128,11 +128,16 @@ class BydClient:
         vin: str,
         command: RemoteCommand,
         *,
+        command_pwd: str | None = None,
         poll_attempts: int = 10,
         poll_interval: float = 1.5,
     ) -> RemoteControlResult:
+        resolved_command_pwd = self._resolve_command_pwd(command_pwd)
+        if command in (RemoteCommand.LOCK, RemoteCommand.UNLOCK) and not resolved_command_pwd:
+            raise BydApiError("Missing command password for lock/unlock remote control command")
         payload = {
             "instructionCode": command.value,
+            "commandType": command.value,
             "deviceType": self._config.device.device_type,
             "imeiMD5": self._config.device.imei_md5,
             "networkType": self._config.device.network_type,
@@ -140,6 +145,7 @@ class BydClient:
             "timeStamp": str(self._now_ms()),
             "version": self._config.app_inner_version,
             "vin": vin,
+            "commandPwd": resolved_command_pwd,
         }
         data = await self._poll_data(
             "/control/remoteControl",
@@ -173,6 +179,17 @@ class BydClient:
 
     async def stop_climate(self, vin: str, **kwargs: Any) -> RemoteControlResult:
         return await self.remote_control(vin, RemoteCommand.STOP_CLIMATE, **kwargs)
+
+    def _resolve_command_pwd(self, command_pwd: str | None) -> str:
+        """Return command password in BYD expected form (uppercase MD5)."""
+        if not command_pwd:
+            command_pwd = self._config.control_pin
+        if not command_pwd:
+            return ""
+        value = str(command_pwd).strip()
+        if len(value) == 32 and all(ch in "0123456789abcdefABCDEF" for ch in value):
+            return value.upper()
+        return hashlib.md5(value.encode("utf-8")).hexdigest().upper()
 
     async def _poll_realtime_endpoint(
         self,
