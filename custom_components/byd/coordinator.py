@@ -205,6 +205,14 @@ class BydDataCoordinator(DataUpdateCoordinator[BydSnapshot]):
         await self.client.honk_horn(self.data.vin)
         self._logger.debug("Honk horn command completed for VIN=%s", self.data.vin)
 
+    async def async_window_up(self) -> None:
+        self._logger.debug("Sending window-up command for VIN=%s", self.data.vin)
+        await self.client.close_windows(self.data.vin)
+        self._logger.debug(
+            "Window-up command completed for VIN=%s; requesting refresh", self.data.vin
+        )
+        await self.async_request_refresh()
+
     def realtime_raw(self) -> dict[str, Any]:
         raw = getattr(self.data.realtime, "raw", None) if self.data else None
         return raw if isinstance(raw, dict) else {}

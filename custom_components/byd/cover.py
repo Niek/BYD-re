@@ -5,7 +5,6 @@ from __future__ import annotations
 from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -21,7 +20,7 @@ class BydWindowsCover(BydEntity, CoverEntity):
     """Represents all windows as one cover."""
 
     _attr_name = "Windows"
-    _attr_supported_features = CoverEntityFeature.OPEN
+    _attr_supported_features = CoverEntityFeature.CLOSE
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
@@ -44,5 +43,5 @@ class BydWindowsCover(BydEntity, CoverEntity):
         # 1 = closed/up, 2 = open/down.
         return all(str(v).strip() == "1" for v in known)
 
-    async def async_open_cover(self, **kwargs):
-        raise HomeAssistantError("Window control is not mapped to the BYD API yet")
+    async def async_close_cover(self, **kwargs):
+        await self.coordinator.async_window_up()
