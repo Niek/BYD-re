@@ -30,10 +30,11 @@ class BydHeatedSeatsSwitch(BydEntity, SwitchEntity):
     @property
     def is_on(self) -> bool | None:
         raw = self.coordinator.realtime_raw()
-        val = raw.get("seatHeatStatus")
-        if val is None:
+        main_state = raw.get("mainSeatHeatState")
+        copilot_state = raw.get("copilotSeatHeatState")
+        if main_state is None and copilot_state is None:
             return None
-        return str(val) == "1"
+        return str(main_state) == "2" or str(copilot_state) == "2"
 
     async def async_turn_on(self, **kwargs):
         raise HomeAssistantError("Heated-seats control is not mapped to the BYD API yet")
