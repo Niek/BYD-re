@@ -49,7 +49,7 @@ class BydDataCoordinator(DataUpdateCoordinator[BydSnapshot]):
     def __init__(
         self,
         hass: HomeAssistant,
-        username: str,
+        email: str,
         password: str,
         country_code: str,
         base_url: str,
@@ -57,20 +57,20 @@ class BydDataCoordinator(DataUpdateCoordinator[BydSnapshot]):
         session: ClientSession,
     ) -> None:
         config = BydConfig(
-            username=username,
-            password=password,
-            country_code=country_code,
+            email,
+            password,
             base_url=base_url,
+            country_code=country_code,
         )
         self.client = BydClient(config=config, session=session)
         self._vin = vin
         self._logger = logging.getLogger(__name__)
         self._logger.debug(
-            "Initialized BYD coordinator for base_url=%s country_code=%s vin=%s username=%s",
+            "Initialized BYD coordinator for base_url=%s country_code=%s vin=%s email=%s",
             base_url,
             country_code,
             vin,
-            username,
+            email,
         )
         super().__init__(
             hass,
