@@ -9,7 +9,7 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_BASE_URL, CONF_COUNTRY_CODE, CONF_VIN, DOMAIN, PLATFORMS
+from .const import CONF_BASE_URL, CONF_CONTROL_PIN, CONF_COUNTRY_CODE, CONF_VIN, DOMAIN, PLATFORMS
 from .coordinator import BydDataCoordinator
 
 LOGGER = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         country_code=entry.data[CONF_COUNTRY_CODE],
         base_url=entry.data[CONF_BASE_URL],
         vin=entry.data.get(CONF_VIN),
+        control_pin=entry.data.get(CONF_CONTROL_PIN),
         session=async_get_clientsession(hass),
     )
 

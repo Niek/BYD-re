@@ -36,3 +36,4 @@ class BydConfig:
     tbox_version: str = "3"
     is_auto: str = "1"
     device: DeviceProfile = field(default_factory=DeviceProfile)
+    control_pin: str | None = None

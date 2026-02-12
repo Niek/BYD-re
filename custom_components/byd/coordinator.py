@@ -55,12 +55,14 @@ class BydDataCoordinator(DataUpdateCoordinator[BydSnapshot]):
         base_url: str,
         vin: str | None,
         session: ClientSession,
+        control_pin: str | None = None,
     ) -> None:
         config = BydConfig(
             email,
             password,
             base_url=base_url,
             country_code=country_code,
+            control_pin=control_pin,
         )
         self.client = BydClient(config=config, session=session)
         self._vin = vin
