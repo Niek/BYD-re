@@ -129,6 +129,7 @@ class BydClient:
         command: RemoteCommand,
         *,
         command_pwd: str | None = None,
+        control_params_map: dict[str, Any] | str | None = None,
         poll_attempts: int = 10,
         poll_interval: float = 1.5,
     ) -> RemoteControlResult:
@@ -142,8 +143,18 @@ class BydClient:
             "timeStamp": str(self._now_ms()),
             "version": self._config.app_inner_version,
             "vin": vin,
-            "commandPwd": resolved_command_pwd,
         }
+        if resolved_command_pwd:
+            payload["commandPwd"] = resolved_command_pwd
+        if control_params_map is not None:
+            if isinstance(control_params_map, str):
+                payload["controlParamsMap"] = control_params_map
+            else:
+                payload["controlParamsMap"] = json.dumps(
+                    {k: control_params_map[k] for k in sorted(control_params_map)},
+                    separators=(",", ":"),
+                )
+
         data = await self._poll_data(
             "/control/remoteControl",
             "/control/remoteControlResult",
@@ -177,12 +188,12 @@ class BydClient:
     async def stop_climate(self, vin: str, **kwargs: Any) -> RemoteControlResult:
         return await self.remote_control(vin, RemoteCommand.STOP_CLIMATE, **kwargs)
 
-    def _resolve_command_pwd(self, command_pwd: str | None) -> str:
+    def _resolve_command_pwd(self, command_pwd: str | None) -> str | None:
         """Resolve command password to MD5 uppercase hash expected by remote control API."""
         if command_pwd is not None:
             value = str(command_pwd).strip()
             if not value:
-                return ""
+                return None
             if len(value) == 32 and all(ch in "0123456789abcdefABCDEF" for ch in value):
                 return value.upper()
             return self._md5(value)
@@ -190,7 +201,7 @@ class BydClient:
         configured = (self._config.control_pin or "").strip()
         if configured:
             return self._md5(configured)
-        return ""
+        return None
 
     async def _poll_realtime_endpoint(
         self,
