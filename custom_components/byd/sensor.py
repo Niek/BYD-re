@@ -15,12 +15,6 @@ SENSORS = [
     SensorEntityDescription(key="battery", name="Battery", native_unit_of_measurement=PERCENTAGE, device_class=SensorDeviceClass.BATTERY),
     SensorEntityDescription(key="range", name="Range", native_unit_of_measurement=UnitOfLength.KILOMETERS),
     SensorEntityDescription(
-        key="inside_temperature",
-        name="Inside Temperature",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-    ),
-    SensorEntityDescription(
         key="outside_temperature",
         name="Outside Temperature",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -46,16 +40,7 @@ def _parse_temperature(value: float | str | None) -> float | None:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    raw = coordinator.realtime_raw()
-    outside_temp = _parse_temperature(raw.get("tempOutCar"))
-
-    descriptions = [
-        desc
-        for desc in SENSORS
-        if desc.key != "inside_temperature" or outside_temp is not None
-    ]
-
-    async_add_entities(BydSensor(coordinator, desc) for desc in descriptions)
+    async_add_entities(BydSensor(coordinator, desc) for desc in SENSORS)
 
 
 class BydSensor(BydEntity, SensorEntity):
@@ -76,16 +61,6 @@ class BydSensor(BydEntity, SensorEntity):
         if self.entity_description.key == "range":
             value = rt.endurance_mileage
             return None if value is None else round(float(value))
-        if self.entity_description.key == "inside_temperature":
-            inside_temp = _parse_temperature(raw.get("tempInCar"))
-            if inside_temp is None:
-                return None
-
-            outside_temp = _parse_temperature(raw.get("tempOutCar"))
-            if outside_temp is None:
-                return None
-
-            return inside_temp
         if self.entity_description.key == "outside_temperature":
             outside_temp = _parse_temperature(raw.get("tempOutCar"))
             if outside_temp is not None:

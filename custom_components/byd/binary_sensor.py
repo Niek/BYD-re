@@ -14,7 +14,6 @@ from .entity import BydEntity
 BINARY_SENSORS = [
     BinarySensorEntityDescription(key="bonnet", name="Front Bonnet"),
     BinarySensorEntityDescription(key="doors", name="Doors", device_class=BinarySensorDeviceClass.DOOR),
-    BinarySensorEntityDescription(key="windows", name="Windows", device_class=BinarySensorDeviceClass.WINDOW),
     BinarySensorEntityDescription(key="boot", name="Boot", device_class=BinarySensorDeviceClass.OPENING),
     BinarySensorEntityDescription(key="charging", name="Charging", device_class=BinarySensorDeviceClass.BATTERY_CHARGING),
     BinarySensorEntityDescription(
@@ -51,14 +50,6 @@ class BydBinarySensor(BydEntity, BinarySensorEntity):
             fields = ["leftFrontDoor", "rightFrontDoor", "leftRearDoor", "rightRearDoor"]
             values = [raw.get(k) for k in fields if raw.get(k) is not None]
             return None if not values else any(str(v) == "1" for v in values)
-
-        if self.entity_description.key == "windows":
-            fields = ["leftFrontWindow", "rightFrontWindow", "leftRearWindow", "rightRearWindow", "skylight"]
-            values = [raw.get(k) for k in fields if raw.get(k) is not None]
-            if not values:
-                return None
-            # BYD window mapping: 1=closed/up, 2=open/down.
-            return any(str(v) == "2" for v in values)
 
         if self.entity_description.key == "boot":
             value = raw.get("trunkLid")

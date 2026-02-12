@@ -44,4 +44,4 @@ class BydWindowsCover(BydEntity, CoverEntity):
         return all(str(v) == "1" for v in known)
 
     async def async_open_cover(self, **kwargs):
-        raise HomeAssistantError("Windows-up remote command code is not mapped yet")
+        raise HomeAssistantError("Window control is not mapped to the BYD API yet")

@@ -5,6 +5,7 @@ from __future__ import annotations
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -53,7 +54,7 @@ class BydDoorLock(BydEntity, LockEntity):
         return known[0] == "2"
 
     async def async_lock(self, **kwargs):
-        await self.coordinator.async_lock()
+        raise HomeAssistantError("Door lock control is not mapped to the BYD API yet")
 
     async def async_unlock(self, **kwargs):
-        await self.coordinator.async_unlock()
+        raise HomeAssistantError("Door lock control is not mapped to the BYD API yet")

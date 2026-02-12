@@ -21,6 +21,7 @@ class BydHeatedSeatsSwitch(BydEntity, SwitchEntity):
     """Heated seats toggle (placeholder command mapping)."""
 
     _attr_name = "Heated Seats"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
@@ -35,16 +36,17 @@ class BydHeatedSeatsSwitch(BydEntity, SwitchEntity):
         return str(val) == "1"
 
     async def async_turn_on(self, **kwargs):
-        raise HomeAssistantError("Heated-seats command code is not mapped yet")
+        raise HomeAssistantError("Heated-seats control is not mapped to the BYD API yet")
 
     async def async_turn_off(self, **kwargs):
-        raise HomeAssistantError("Heated-seats command code is not mapped yet")
+        raise HomeAssistantError("Heated-seats control is not mapped to the BYD API yet")
 
 
 class BydChargingSwitch(BydEntity, SwitchEntity):
     """Charging toggle (placeholder command mapping)."""
 
     _attr_name = "Charging"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
@@ -58,7 +60,7 @@ class BydChargingSwitch(BydEntity, SwitchEntity):
         return str(state) in {"1", "2", "charging", "CHARGING"}
 
     async def async_turn_on(self, **kwargs):
-        raise HomeAssistantError("Smart-charge toggle endpoint payload is not mapped yet")
+        raise HomeAssistantError("Charging control is not mapped to the BYD API yet")
 
     async def async_turn_off(self, **kwargs):
-        raise HomeAssistantError("Smart-charge toggle endpoint payload is not mapped yet")
+        raise HomeAssistantError("Charging control is not mapped to the BYD API yet")

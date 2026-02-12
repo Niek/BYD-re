@@ -7,6 +7,7 @@ from homeassistant.components.climate.const import HVACMode
 from homeassistant.const import UnitOfTemperature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -73,7 +74,4 @@ class BydClimate(BydEntity, ClimateEntity):
         return None if temp == -129 else temp
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        if hvac_mode == HVACMode.OFF:
-            await self.coordinator.async_stop_climate()
-        else:
-            await self.coordinator.async_start_climate()
+        raise HomeAssistantError("Climate control is not mapped to the BYD API yet")
