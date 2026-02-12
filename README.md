@@ -4,11 +4,11 @@ Reverse engineering of the BYD app HTTP crypto path used in the Android app.
 
 Base host: `https://dilinkappoversea-eu.byd.auto`
 
-## 🔗 Related Project
+## 🔗 Related Projects
 
+- [`pyBYD`](https://github.com/jkaberg/pyBYD): full Python library built from these reverse-engineering findings.
 - [`hass-byd-vehicle`](https://github.com/jkaberg/hass-byd-vehicle): Home Assistant integration for BYD vehicles.
 - [`BYD-re custom_components`](https://github.com/codyc1515/BYD-re/tree/main/custom_components/byd): Home Assistant custom component for BYD.
-- [`pyBYD`](https://github.com/jkaberg/pyBYD): full Python library built from these reverse-engineering findings.
 
 ## 📱 App & Transport Snapshot
 
@@ -65,9 +65,11 @@ Response-side decoded outer payload usually includes:
 }
 ```
 
+For a full field-level description and mapping reference, see [`pyBYD/API_MAPPING.md`](https://github.com/jkaberg/pyBYD/blob/main/API_MAPPING.md).
+
 ## 🔐 Crypto Pipeline (How Encryption Works)
 
-Every BYD app call in this repo uses two crypto layers:
+Every BYD app call in this repo uses multiple crypto layers:
 
 1. HTTP wrapper
 - Request body is JSON: `{"request":"<envelope>"}`.
@@ -81,9 +83,10 @@ Every BYD app call in this repo uses two crypto layers:
 
 3. Inner business payload layer (`encryData` / `respondData`)
 - Fields are uppercase hex AES-128-CBC (zero IV).
-- `/app/config/getCommonConfig` uses static `CONFIG_KEY`.
+- Config endpoints (e.g. `/app/config/getAllBrandCommonConfig`) use static `CONFIG_KEY`.
 - `/app/account/getAccountState` uses `MD5(identifier)`.
 - Login (`pwdLogin`) uses `MD5(MD5(signKey))` where `signKey` is the plaintext password sent in the outer payload.
+- Remote control command password (`commandPwd`) uses uppercase `MD5(<operation PIN>)` (e.g. `123456` → `E10ADC3949BA59ABBE56E057F20F883E`), used by `/vehicle/vehicleswitch/verifyControlPassword` and `/control/remoteControl`.
 - Post-login payloads use token-derived keys from `respondData.token`:
   - content key: `MD5(encryToken)` (for `encryData` / `respondData`)
   - sign key: `MD5(signToken)` (for `sign`)
@@ -97,6 +100,8 @@ Every BYD app call in this repo uses two crypto layers:
 ## 🚀 Use This First: Minimal Client
 
 `client.js` is the main entrypoint (most useful path).
+
+Prerequisite: Node.js 20+.
 
 Create `.env`:
 
