@@ -135,6 +135,7 @@ class BydClient:
         resolved_command_pwd = self._resolve_command_pwd(command_pwd)
         payload = {
             "instructionCode": command.value,
+            "commandType": command.value,
             "deviceType": self._config.device.device_type,
             "imeiMD5": self._config.device.imei_md5,
             "networkType": self._config.device.network_type,
@@ -142,6 +143,7 @@ class BydClient:
             "timeStamp": str(self._now_ms()),
             "version": self._config.app_inner_version,
             "vin": vin,
+            "commandPwd": resolved_command_pwd,
         }
         if resolved_command_pwd:
             payload["commandPwd"] = resolved_command_pwd
