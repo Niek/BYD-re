@@ -128,9 +128,11 @@ class BydClient:
         vin: str,
         command: RemoteCommand,
         *,
+        command_pwd: str | None = None,
         poll_attempts: int = 10,
         poll_interval: float = 1.5,
     ) -> RemoteControlResult:
+        resolved_command_pwd = self._resolve_command_pwd(command_pwd)
         payload = {
             "instructionCode": command.value,
             "deviceType": self._config.device.device_type,
@@ -141,6 +143,8 @@ class BydClient:
             "version": self._config.app_inner_version,
             "vin": vin,
         }
+        if resolved_command_pwd:
+            payload["commandPwd"] = resolved_command_pwd
         data = await self._poll_data(
             "/control/remoteControl",
             "/control/remoteControlResult",
@@ -173,6 +177,13 @@ class BydClient:
 
     async def stop_climate(self, vin: str, **kwargs: Any) -> RemoteControlResult:
         return await self.remote_control(vin, RemoteCommand.STOP_CLIMATE, **kwargs)
+
+    @staticmethod
+    def _resolve_command_pwd(command_pwd: str | None) -> str:
+        """Return optional command password unchanged except for whitespace trimming."""
+        if not command_pwd:
+            return ""
+        return str(command_pwd).strip()
 
     async def _poll_realtime_endpoint(
         self,
