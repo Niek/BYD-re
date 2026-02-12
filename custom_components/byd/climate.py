@@ -14,6 +14,26 @@ from .const import DOMAIN
 from .entity import BydEntity
 
 
+def _parse_temperature(value: float | str | None) -> float | None:
+    """Parse temperature values and filter unavailable sentinel values."""
+    if value is None:
+        return None
+    try:
+        temp = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if temp == -129 else temp
+
+
+def _first_temperature(raw: dict, *keys: str) -> float | None:
+    """Return the first valid temperature from the given payload keys."""
+    for key in keys:
+        parsed = _parse_temperature(raw.get(key))
+        if parsed is not None:
+            return parsed
+    return None
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([BydClimate(coordinator)])
@@ -50,14 +70,7 @@ class BydClimate(BydEntity, ClimateEntity):
     @property
     def current_temperature(self) -> float | None:
         raw = self.coordinator.realtime_raw()
-        value = raw.get("tempInCar")
-        if value is None:
-            return None
-        try:
-            temp = float(value)
-        except (TypeError, ValueError):
-            return None
-        return None if temp == -129 else temp
+        return _first_temperature(raw, "tempInCar", "insideTemperature")
 
     @property
     def target_temperature(self) -> float | None:

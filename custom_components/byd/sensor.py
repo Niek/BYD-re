@@ -15,6 +15,12 @@ SENSORS = [
     SensorEntityDescription(key="battery", name="Battery", native_unit_of_measurement=PERCENTAGE, device_class=SensorDeviceClass.BATTERY),
     SensorEntityDescription(key="range", name="Range", native_unit_of_measurement=UnitOfLength.KILOMETERS),
     SensorEntityDescription(
+        key="inside_temperature",
+        name="Inside Temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+    ),
+    SensorEntityDescription(
         key="outside_temperature",
         name="Outside Temperature",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -38,9 +44,27 @@ def _parse_temperature(value: float | str | None) -> float | None:
     return None if temp == -129 else temp
 
 
+def _first_temperature(raw: dict, *keys: str) -> float | None:
+    """Return the first valid temperature from the given payload keys."""
+    for key in keys:
+        parsed = _parse_temperature(raw.get(key))
+        if parsed is not None:
+            return parsed
+    return None
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(BydSensor(coordinator, desc) for desc in SENSORS)
+    raw = coordinator.realtime_raw()
+    inside_temp = _first_temperature(raw, "tempInCar", "insideTemperature")
+
+    descriptions = [
+        desc
+        for desc in SENSORS
+        if desc.key != "inside_temperature" or inside_temp is not None
+    ]
+
+    async_add_entities(BydSensor(coordinator, desc) for desc in descriptions)
 
 
 class BydSensor(BydEntity, SensorEntity):
@@ -61,12 +85,14 @@ class BydSensor(BydEntity, SensorEntity):
         if self.entity_description.key == "range":
             value = rt.endurance_mileage
             return None if value is None else round(float(value))
+        if self.entity_description.key == "inside_temperature":
+            return _first_temperature(raw, "tempInCar", "insideTemperature")
         if self.entity_description.key == "outside_temperature":
-            outside_temp = _parse_temperature(raw.get("tempOutCar"))
+            outside_temp = _first_temperature(raw, "tempOutCar", "outsideTemperature")
             if outside_temp is not None:
                 return outside_temp
 
-            return _parse_temperature(raw.get("tempInCar"))
+            return _first_temperature(raw, "tempInCar", "insideTemperature")
         if self.entity_description.key == "charge_time_remaining":
             hours = self._parse_remaining_component(raw.get("remainingHours"), minimum=0)
             minutes = self._parse_remaining_component(raw.get("remainingMinutes"), minimum=0, maximum=59)
