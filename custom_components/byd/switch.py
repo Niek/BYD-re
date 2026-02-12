@@ -46,6 +46,12 @@ class BydHeatedSeatsSwitch(BydEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs):
         raise HomeAssistantError("Heated-seats control is not mapped to the BYD API yet")
 
+    @property
+    def icon(self) -> str:
+        if self.is_on:
+            return "mdi:car-seat-heater"
+        return "mdi:car-seat"
+
 
 class BydChargingSwitch(BydEntity, SwitchEntity):
     """Charging toggle (placeholder command mapping)."""
