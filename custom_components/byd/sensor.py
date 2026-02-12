@@ -19,6 +19,7 @@ SENSORS = [
         name="Outside Temperature",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
+        suggested_display_precision=0,
     ),
     SensorEntityDescription(
         key="charge_time_remaining",
@@ -45,6 +46,14 @@ def _first_temperature(raw: dict, *keys: str) -> float | None:
         if parsed is not None:
             return parsed
     return None
+
+
+def _temperature_without_decimals(raw: dict, *keys: str) -> int | None:
+    """Return rounded temperature without decimals from the given payload keys."""
+    temperature = _first_temperature(raw, *keys)
+    if temperature is None:
+        return None
+    return round(temperature)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
