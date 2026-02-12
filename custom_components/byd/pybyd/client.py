@@ -129,6 +129,7 @@ class BydClient:
         command: RemoteCommand,
         *,
         command_pwd: str | None = None,
+        control_params_map: dict[str, Any] | str | None = None,
         poll_attempts: int = 10,
         poll_interval: float = 1.5,
     ) -> RemoteControlResult:
@@ -142,8 +143,17 @@ class BydClient:
             "timeStamp": str(self._now_ms()),
             "version": self._config.app_inner_version,
             "vin": vin,
-            "commandPwd": resolved_command_pwd,
         }
+        if resolved_command_pwd:
+            # Match app behavior: only include commandPwd when non-empty.
+            payload["commandPwd"] = resolved_command_pwd
+        if control_params_map is not None:
+            if isinstance(control_params_map, str):
+                payload["controlParamsMap"] = control_params_map
+            else:
+                payload["controlParamsMap"] = json.dumps(
+                    {k: control_params_map[k] for k in sorted(control_params_map)}
+                )
         data = await self._poll_data(
             "/control/remoteControl",
             "/control/remoteControlResult",
