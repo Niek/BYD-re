@@ -330,6 +330,44 @@ function buildListRequest(nowMs, session) {
   return buildTokenOuterEnvelope(nowMs, session, inner);
 }
 
+function buildEmqBrokerRequest(nowMs, session) {
+  const inner = {
+    deviceType: CONFIG.deviceType,
+    imeiMD5: CONFIG.imeiMd5,
+    networkType: CONFIG.networkType,
+    random: randomHex16(),
+    timeStamp: String(nowMs),
+    version: CONFIG.appInnerVersion,
+  };
+  return buildTokenOuterEnvelope(nowMs, session, inner);
+}
+
+async function fetchEmqBroker(session) {
+  const req = buildEmqBrokerRequest(Date.now(), session);
+  const outer = await postSecure('/app/emqAuth/getEmqBrokerIp', req.outer);
+  if (String(outer.code) !== '0') {
+    throw new Error(`Broker lookup failed: code=${outer.code} message=${outer.message || ''}`.trim());
+  }
+  const decoded = decryptRespondDataJson(outer.respondData, req.contentKey);
+  const broker = decoded && (decoded.emqBorker || decoded.emqBroker)
+    ? String(decoded.emqBorker || decoded.emqBroker)
+    : '';
+  if (!broker) {
+    throw new Error('Broker lookup response missing emqBorker');
+  }
+  return broker;
+}
+
+function buildMqttClientId() {
+  return `oversea_${String(CONFIG.imeiMd5).toUpperCase()}`;
+}
+
+function buildMqttPassword(session, clientId, tsSeconds) {
+  const base = `${session.signToken}${clientId}${session.userId}${tsSeconds}`;
+  const hash = md5Hex(base);
+  return `${tsSeconds}${hash}`;
+}
+
 function buildVehicleRealtimeEnvelope(nowMs, session, vin, requestSerial = null) {
   const inner = {
     deviceType: CONFIG.deviceType,
@@ -1886,6 +1924,13 @@ async function main() {
   });
 
   const session = { userId, signToken, encryToken };
+
+  const broker = await fetchEmqBroker(session);
+  stepLog('Resolved MQTT broker', { broker });
+  const mqttClientId = buildMqttClientId();
+  const mqttPassword = buildMqttPassword(session, mqttClientId, Math.floor(Date.now() / 1000));
+  const mqttUrl = `mqtts://${userId}:${mqttPassword}@${broker}/oversea/res/${userId}`;
+  console.log(`MQTT client: mosquitto_sub -V mqttv5 -L '${mqttUrl}' -i '${mqttClientId}' -d`);
 
   const listReq = buildListRequest(Date.now(), session);
   const listOuter = await postSecure('/app/account/getAllListByUserId', listReq.outer);
