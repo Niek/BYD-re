@@ -21,6 +21,7 @@ class BydFlashLightsButton(BydEntity, ButtonEntity):
     """Vehicle flash lights button."""
 
     _attr_name = "Flash Lights"
+    # Action endpoints are not fully mapped yet, so keep buttons disabled by default.
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
@@ -35,6 +36,7 @@ class BydAlarmButton(BydEntity, ButtonEntity):
     """Vehicle alarm (horn) button."""
 
     _attr_name = "Alarm"
+    # Action endpoints are not fully mapped yet, so keep buttons disabled by default.
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator) -> None:
