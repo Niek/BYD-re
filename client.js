@@ -1931,6 +1931,9 @@ async function main() {
   const mqttPassword = buildMqttPassword(session, mqttClientId, Math.floor(Date.now() / 1000));
   const mqttUrl = `mqtts://${userId}:${mqttPassword}@${broker}/oversea/res/${userId}`;
   console.log(`MQTT client: mosquitto_sub -V mqttv5 -L '${mqttUrl}' -i '${mqttClientId}' -d`);
+  const mqttDecodeKeyHex = md5Hex(encryToken);
+  const mqttDecodeCmd = `mosquitto_sub -V mqttv5 -L '${mqttUrl}' -i '${mqttClientId}' -F '%p' | node ./mqtt_decode.js '${mqttDecodeKeyHex}'`;
+  console.log(`MQTT decode: ${mqttDecodeCmd}`);
 
   const listReq = buildListRequest(Date.now(), session);
   const listOuter = await postSecure('/app/account/getAllListByUserId', listReq.outer);
