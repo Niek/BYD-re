@@ -52,9 +52,7 @@ class BydClimate(BydEntity, ClimateEntity):
     @property
     def target_temperature(self) -> float | None:
         raw = self.coordinator.realtime_raw()
-        value = raw.get("mainSettingTempNew")
-        if value is None:
-            value = raw.get("mainSettingTemp")
+        value = raw.get("mainSettingTemp")
         if value is None:
             return None
         try:
