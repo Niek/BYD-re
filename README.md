@@ -1,16 +1,16 @@
-# BYD Reverse Engineering
+# 🚗 BYD Reverse Engineering
 
 Reverse engineering of the BYD app HTTP crypto path used in the Android app.
 
 Base host: `https://dilinkappoversea-eu.byd.auto`
 
-## Related Projects
+## 🔗 Related Projects
 
 - [`pyBYD`](https://github.com/jkaberg/pyBYD): full Python library built from these reverse-engineering findings.
 - [`hass-byd-vehicle`](https://github.com/jkaberg/hass-byd-vehicle): Home Assistant integration for BYD vehicles.
 - [`BYD-re custom_components`](https://github.com/codyc1515/BYD-re/tree/main/custom_components/byd): Home Assistant custom component for BYD.
 
-## Quickstart
+## 🚀 Quickstart
 
 `client.js` is the main entrypoint. Prerequisite: Node.js 20+.
 
@@ -35,7 +35,7 @@ The client performs login, fetches your vehicle list, polls real-time vehicle st
 
 The client accepts many `BYD_*` environment variable overrides (`BYD_COUNTRY_CODE`, `BYD_LANGUAGE`, `BYD_VIN`, etc.) — see the top of `client.js` for the full list and defaults.
 
-## Project Map
+## 🗺️ Project Map
 
 - `client.js`: minimal login + vehicle list + realtime poll + GPS client + MQTT connection info.
 - `mqtt_decode.js`: streaming MQTT payload decoder (AES-128-CBC, hex input → JSON output).
@@ -47,7 +47,7 @@ The client accepts many `BYD_*` environment variable overrides (`BYD_COUNTRY_COD
 - `xposed/http.sh`: decode helper for `HTTP method=` log lines.
 - `xposed/src/*`: Xposed hook module source (Java hooks, resources, manifest).
 
-## App & Transport Snapshot
+## 📱 App & Transport Snapshot
 
 - App: BYD overseas Android app (`com.byd.bydautolink`).
 - Hooking compatibility: `2.9.1` is the latest APK version that can be reliably hooked in this setup. Newer versions add Magisk/Zygote/LSPosed/root detection.
@@ -61,7 +61,7 @@ Common request characteristics observed in hooks and mirrored by `client.js`:
 - `user-agent: okhttp/4.12.0`
 - cookie-backed session reuse across calls (client stores and replays returned cookies)
 
-## Crypto Pipeline
+## 🔐 Crypto Pipeline
 
 Every BYD API call uses multiple crypto layers, described from outermost to innermost.
 
@@ -122,34 +122,18 @@ For a full field-level description and mapping reference, see [`pyBYD/API_MAPPIN
 - `checkcode` is computed from `MD5(JSON.stringify(outerPayload))` with reordered chunks:
   `[24:32] + [8:16] + [16:24] + [0:8]`
 
-## MQTT Real-Time Vehicle Telemetry
+## 📡 MQTT Real-Time Vehicle Telemetry
 
-BYD uses an [EMQ](https://www.emqx.io/)-based MQTT broker to push real-time vehicle data (telemetry, status updates) to connected clients. The connection uses MQTT v5 over TLS (`mqtts://`, port 8883).
+BYD uses an [EMQ](https://www.emqx.io/)-based MQTT broker to push real-time vehicle data to connected clients via MQTTv5 over TLS (port 8883). The broker hostname is fetched after login via `POST /app/emqAuth/getEmqBrokerIp` (response field: `emqBroker` or `emqBorker`).
 
-### Connection Parameters
+| Parameter | Value |
+|-----------|-------|
+| **Client ID** | `oversea_` + uppercase `MD5(IMEI)` (default IMEI MD5: all zeros) |
+| **Username** | `userId` from login response token |
+| **Password** | `<tsSeconds>` + `MD5(signToken + clientId + userId + tsSeconds)` |
+| **Topic** | `/oversea/res/<userId>` |
 
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| **Protocol** | MQTTv5 over TLS | `mqtts://` (port 8883) |
-| **Broker** | Dynamic, per-region | API: `/app/emqAuth/getEmqBrokerIp` |
-| **Client ID** | `oversea_<IMEI_MD5>` | `IMEI_MD5` uppercased, prefixed with `oversea_` |
-| **Username** | `<userId>` | From login response `token.userId` |
-| **Password** | `<tsSeconds><MD5(signToken + clientId + userId + tsSeconds)>` | Computed at connect time |
-| **Topic** | `/oversea/res/<userId>` | Subscribe to receive vehicle push messages |
-
-The broker hostname is fetched after login via `POST /app/emqAuth/getEmqBrokerIp`. The decrypted response contains the broker address in the `emqBroker` (or `emqBorker`) field.
-
-MQTT credentials are derived from the login session tokens:
-
-1. **Client ID**: `oversea_` + uppercase `MD5(IMEI)`. The default IMEI MD5 is `00000000000000000000000000000000`.
-2. **Username**: The `userId` string returned in the login response token.
-3. **Password**: Built as `<tsSeconds><hash>` where:
-   - `tsSeconds` = current Unix timestamp in seconds
-   - `hash` = `MD5(signToken + clientId + userId + tsSeconds)` (lowercase hex)
-
-All MQTT message payloads are **hex-encoded AES-128-CBC** ciphertext with a **zero IV** (same scheme as `encryData`/`respondData`). The decryption key is `MD5(encryToken)` — the same content key used for HTTP response decryption.
-
-### Subscribing with mosquitto
+All MQTT payloads use the same encryption as `encryData`/`respondData`: hex-encoded AES-128-CBC, zero IV, key = `MD5(encryToken)`.
 
 `client.js` prints ready-to-use `mosquitto_sub` commands after login. Example:
 
@@ -161,9 +145,7 @@ mosquitto_sub -V mqttv5 \
   | node ./mqtt_decode.js '<MD5(encryToken)>'
 ```
 
-`mqtt_decode.js` reads hex-encoded MQTT payloads from stdin and decrypts them with `MD5(encryToken)` as AES key.
-
-## Debugging / Offline Decode (`decompile.js`)
+## 🧪 Debugging / Offline Decode (`decompile.js`)
 
 Decode one payload:
 
@@ -197,7 +179,7 @@ Decode full hook flow:
 
 `xposed/http.sh` creates a temporary per-run decode-state file so keys learned from login are reused for later calls in the same flow.
 
-## Internals
+## 🧩 Internals
 
 ### Decoder Key Strategy
 
