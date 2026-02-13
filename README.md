@@ -97,6 +97,64 @@ Every BYD app call in this repo uses multiple crypto layers:
 - `checkcode` is computed from `MD5(JSON.stringify(outerPayload))` with reordered chunks:
   - `[24:32] + [8:16] + [16:24] + [0:8]`
 
+## 📡 MQTT Real-Time Vehicle Telemetry
+
+BYD uses an [EMQ](https://www.emqx.io/)-based MQTT broker to push real-time vehicle data (telemetry, status updates) to connected clients. The connection uses MQTT v5 over TLS (`mqtts://`, port 8883).
+
+### Connection Parameters
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| **Protocol** | MQTTv5 over TLS | `mqtts://` (port 8883) |
+| **Broker** | Dynamic, per-region | API: `/app/emqAuth/getEmqBrokerIp` |
+| **Client ID** | `oversea_<IMEI_MD5>` | `IMEI_MD5` uppercased, prefixed with `oversea_` |
+| **Username** | `<userId>` | From login response `token.userId` |
+| **Password** | `<tsSeconds><MD5(signToken + clientId + userId + tsSeconds)>` | Computed at connect time |
+| **Topic** | `/oversea/res/<userId>` | Subscribe to receive vehicle push messages |
+
+### Broker Discovery
+
+The broker hostname is not hardcoded — it is fetched after login via the API:
+
+```
+POST /app/emqAuth/getEmqBrokerIp
+```
+
+The decrypted response contains the broker address in the `emqBroker` (or `emqBorker`) field.
+
+### Authentication
+
+MQTT credentials are derived from the login session tokens:
+
+1. **Client ID**: `oversea_` + uppercase `MD5(IMEI)`. The default IMEI MD5 is `00000000000000000000000000000000`.
+2. **Username**: The `userId` string returned in the login response token.
+3. **Password**: Built as `<tsSeconds><hash>` where:
+   - `tsSeconds` = current Unix timestamp in seconds
+   - `hash` = `MD5(signToken + clientId + userId + tsSeconds)` (lowercase hex)
+
+### Payload Encryption
+
+All MQTT message payloads are **hex-encoded AES-128-CBC** ciphertext with a **zero IV** (same scheme as `encryData`/`respondData` in the HTTP API).
+
+The decryption key is `MD5(encryToken)` — the same content key used for HTTP response decryption, derived from the login response token.
+
+### Subscribing with mosquitto
+
+`client.js` prints ready-to-use `mosquitto_sub` commands after login. Example:
+
+```bash
+# Connect and decrypt payloads in real time:
+mosquitto_sub -V mqttv5 \
+  -L 'mqtts://<userId>:<password>@<broker>/oversea/res/<userId>' \
+  -i 'oversea_<IMEI_MD5>' \
+  -F '%p' \
+  | node ./mqtt_decode.js '<MD5(encryToken)>'
+```
+
+### `mqtt_decode.js`
+
+Streaming decoder: reads hex-encoded MQTT payloads from stdin, decrypts with `MD5(encryToken)` as AES key.
+
 ## 🚀 Use This First: Minimal Client
 
 `client.js` is the main entrypoint (most useful path).
@@ -212,7 +270,8 @@ node scripts/generate_bangcle_auth_tables.js
 
 ## 🗺️ Project Map
 
-- `client.js`: minimal login + vehicle list + realtime poll + GPS client.
+- `client.js`: minimal login + vehicle list + realtime poll + GPS client + MQTT connection info.
+- `mqtt_decode.js`: streaming MQTT payload decoder (AES-128-CBC, hex input → JSON output).
 - `decompile.js`: decoder/encoder CLI (debugging/analysis).
 - `bangcle.js`: Bangcle envelope encode/decode implementation.
 - `bangcle_auth_tables.js`: embedded Bangcle auth tables.
