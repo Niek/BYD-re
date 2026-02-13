@@ -2,13 +2,11 @@ package com.byd.xposedhooks;
 
 import android.app.Application;
 import android.os.Build;
-import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -46,7 +44,6 @@ public final class CryptoToolHook {
     private static final String CLASS_CRYPTO_TOOL = "com.wbsk.CryptoTool";
     private static final String CLASS_JNI_UTIL = "jniutil.JniUtil";
     private static final String CLASS_CHECK_CODE = "com.bangcle.comapiprotect.CheckCodeUtil";
-    private static final String CLASS_SAFE_KB_CRYPTER = "com.bangcle.safekb.sec.SafeKBCrypter";
     private static final String HOOK_ALL_METHODS = "*";
 
     private static final Map<String, String[]> ACTIVE_HOOKS;
@@ -62,9 +59,6 @@ public final class CryptoToolHook {
         hooks.put(CLASS_CHECK_CODE, new String[]{
                 HOOK_ALL_METHODS
         });
-        hooks.put(CLASS_SAFE_KB_CRYPTER, new String[]{
-                HOOK_ALL_METHODS
-        });
         ACTIVE_HOOKS = Collections.unmodifiableMap(hooks);
     }
 
@@ -72,17 +66,13 @@ public final class CryptoToolHook {
     private static volatile boolean installed;
     private static volatile boolean settingsLogged;
     private static volatile boolean environmentLogged;
-    private static volatile boolean messageDigestHookInstalled;
-    private static volatile boolean randomHookInstalled;
     private static volatile boolean nativeDumped;
     private static volatile boolean cipherHookInstalled;
     private static volatile boolean okHttpHookInstalled;
-    private static volatile long checkcodeWindowEndMs;
-    private static volatile long checkcodeThreadId;
+    private static volatile boolean mqttHookInstalled;
 
     private static final ConcurrentHashMap<Object, CipherContext> CIPHER_CONTEXT = new ConcurrentHashMap<>();
     private static final ThreadLocal<Boolean> BANGCLE_SELF_DECODE = new ThreadLocal<>();
-    private static final ThreadLocal<DigestCapture> CHECKCODE_DIGEST = new ThreadLocal<>();
     private static final AtomicInteger LOG_SEQUENCE = new AtomicInteger();
 
     private CryptoToolHook() {
@@ -101,8 +91,7 @@ public final class CryptoToolHook {
             }
             hookCipherMethods();
             hookOkHttp(classLoader);
-            hookMessageDigest();
-            hookRandom();
+            hookMqtt(classLoader);
             installed = true;
         }
     }
@@ -173,10 +162,6 @@ public final class CryptoToolHook {
                     dumpBangcleStaticSettings(classLoader);
                     dumpRuntimeEnvironment();
                 }
-                if (CLASS_CHECK_CODE.equals(className) && "checkcode".equals(methodName)) {
-                    CHECKCODE_DIGEST.set(new DigestCapture());
-                    enterCheckcodeWindow();
-                }
             }
 
             @Override
@@ -185,10 +170,6 @@ public final class CryptoToolHook {
                         && "decheckcode".equals(methodName)
                         && Boolean.TRUE.equals(BANGCLE_SELF_DECODE.get())) {
                     return;
-                }
-                if (CLASS_CHECK_CODE.equals(className) && "checkcode".equals(methodName)) {
-                    CHECKCODE_DIGEST.remove();
-                    enterCheckcodeWindow();
                 }
                 Object result = param.getResult();
                 if (CLASS_CHECK_CODE.equals(className)) {
@@ -498,153 +479,6 @@ public final class CryptoToolHook {
         }
     }
 
-    private static void enterCheckcodeWindow() {
-        checkcodeThreadId = Thread.currentThread().getId();
-        checkcodeWindowEndMs = SystemClock.uptimeMillis() + 1500;
-    }
-
-    private static boolean inCheckcodeWindow() {
-        long threadId = Thread.currentThread().getId();
-        if (threadId != checkcodeThreadId) {
-            return false;
-        }
-        return SystemClock.uptimeMillis() <= checkcodeWindowEndMs;
-    }
-
-    private static void hookMessageDigest() {
-        if (messageDigestHookInstalled) {
-            return;
-        }
-        synchronized (CryptoToolHook.class) {
-            if (messageDigestHookInstalled) {
-                return;
-            }
-            try {
-                Class<?> digestClass = java.security.MessageDigest.class;
-                for (Method method : digestClass.getDeclaredMethods()) {
-                    String name = method.getName();
-                    if (!"update".equals(name) && !"digest".equals(name)) {
-                        continue;
-                    }
-                    method.setAccessible(true);
-                    hookMember(method, new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            if (!inCheckcodeWindow() || Boolean.TRUE.equals(BANGCLE_SELF_DECODE.get())) {
-                                return;
-                            }
-                            DigestCapture capture = CHECKCODE_DIGEST.get();
-                            if (capture == null) {
-                                capture = new DigestCapture();
-                                CHECKCODE_DIGEST.set(capture);
-                            }
-                            byte[] input = resolveDigestInput(param.args);
-                            if (input != null) {
-                                capture.append(input);
-                            }
-                        }
-
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            if (!inCheckcodeWindow() || Boolean.TRUE.equals(BANGCLE_SELF_DECODE.get())) {
-                                return;
-                            }
-                            DigestCapture capture = CHECKCODE_DIGEST.get();
-                            if (capture == null) {
-                                return;
-                            }
-                            java.security.MessageDigest digest = (java.security.MessageDigest) param.thisObject;
-                            String algorithm = "unknown";
-                            try {
-                                algorithm = digest.getAlgorithm();
-                            } catch (Throwable ignored) {
-                                // ignore
-                            }
-                            byte[] output = resolveDigestOutput(param, digest);
-                            byte[] input = capture.consume();
-                            if (input.length == 0 && output == null) {
-                                return;
-                            }
-                            StringBuilder sb = new StringBuilder();
-                            sb.append("CheckCodeUtil#checkcode digest algo=").append(algorithm)
-                                    .append(" inputLen=").append(input.length)
-                                    .append(" thread=").append(Thread.currentThread().getName());
-                            if (input.length > 0) {
-                                sb.append(" inputHex=").append(toHex(input));
-                                if (isMostlyPrintable(input)) {
-                                    sb.append(" inputText=").append(new String(input, StandardCharsets.UTF_8));
-                                }
-                            }
-                            if (output != null) {
-                                sb.append(" outputHex=").append(toHex(output));
-                            }
-                            logInfo(sb.toString());
-                        }
-                    });
-                }
-                messageDigestHookInstalled = true;
-                logInfo("Installed MessageDigest hooks");
-            } catch (Throwable t) {
-                logError("Failed to hook MessageDigest - " + Log.getStackTraceString(t));
-            }
-        }
-    }
-
-    private static byte[] resolveDigestInput(Object[] args) {
-        if (args == null || args.length == 0 || args[0] == null) {
-            return null;
-        }
-        Object first = args[0];
-        if (first instanceof Byte) {
-            return new byte[]{(Byte) first};
-        }
-        if (first instanceof byte[]) {
-            byte[] data = (byte[]) first;
-            if (args.length >= 3 && args[1] instanceof Integer && args[2] instanceof Integer) {
-                int offset = (Integer) args[1];
-                int len = (Integer) args[2];
-                if (offset < 0 || len <= 0 || offset + len > data.length) {
-                    return data;
-                }
-                return Arrays.copyOfRange(data, offset, offset + len);
-            }
-            return data;
-        }
-        if (first instanceof ByteBuffer) {
-            return copyBuffer(((ByteBuffer) first).duplicate());
-        }
-        return null;
-    }
-
-    private static byte[] resolveDigestOutput(XC_MethodHook.MethodHookParam param, java.security.MessageDigest digest) {
-        Object result = param.getResult();
-        if (result instanceof byte[]) {
-            return (byte[]) result;
-        }
-        if (result instanceof Integer
-                && param.args != null
-                && param.args.length > 0
-                && param.args[0] instanceof byte[]) {
-            byte[] out = (byte[]) param.args[0];
-            int offset = 0;
-            int len = digest != null ? digest.getDigestLength() : 0;
-            if (param.args.length >= 2 && param.args[1] instanceof Integer) {
-                offset = (Integer) param.args[1];
-            }
-            if (param.args.length >= 3 && param.args[2] instanceof Integer) {
-                len = (Integer) param.args[2];
-            }
-            if (len <= 0) {
-                len = Math.min(16, out.length - offset);
-            }
-            if (offset < 0 || offset + len > out.length) {
-                return out;
-            }
-            return Arrays.copyOfRange(out, offset, offset + len);
-        }
-        return null;
-    }
-
     private static boolean isMostlyPrintable(byte[] data) {
         if (data == null || data.length == 0) {
             return false;
@@ -657,47 +491,6 @@ public final class CryptoToolHook {
             }
         }
         return printable >= Math.max(8, (int) (data.length * 0.8));
-    }
-
-    private static void hookRandom() {
-        if (randomHookInstalled) {
-            return;
-        }
-        synchronized (CryptoToolHook.class) {
-            if (randomHookInstalled) {
-                return;
-            }
-            try {
-                Class<?> secureRandomClass = java.security.SecureRandom.class;
-                for (Method method : secureRandomClass.getDeclaredMethods()) {
-                    if (!"nextBytes".equals(method.getName())) {
-                        continue;
-                    }
-                    method.setAccessible(true);
-                    hookMember(method, new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            if (!inCheckcodeWindow() || Boolean.TRUE.equals(BANGCLE_SELF_DECODE.get())) {
-                                return;
-                            }
-                            if (param.args == null || param.args.length == 0 || !(param.args[0] instanceof byte[])) {
-                                return;
-                            }
-                            byte[] data = (byte[]) param.args[0];
-                            if (data.length < 15) {
-                                return;
-                            }
-                            logInfo("CheckCodeUtil#checkcode rng(SecureRandom) len=" + data.length
-                                    + " hex=" + toHex(data));
-                        }
-                    });
-                }
-                randomHookInstalled = true;
-                logInfo("Installed Random hooks");
-            } catch (Throwable t) {
-                logError("Failed to hook Random - " + Log.getStackTraceString(t));
-            }
-        }
     }
 
     private static void hookCipherMethods() {
@@ -780,6 +573,131 @@ public final class CryptoToolHook {
             }
             logInfo("OkHttp fallback hooks not installed");
         }
+    }
+
+    private static void hookMqtt(ClassLoader classLoader) {
+        if (mqttHookInstalled || classLoader == null) {
+            return;
+        }
+        synchronized (CryptoToolHook.class) {
+            if (mqttHookInstalled) {
+                return;
+            }
+            int hooks = 0;
+            hooks += hookBydMqtt(classLoader);
+            mqttHookInstalled = hooks > 0;
+            if (hooks > 0) {
+                logInfo("Installed MQTT hooks count=" + hooks);
+            } else {
+                logInfo("MQTT hooks not installed");
+            }
+        }
+    }
+
+    private static int hookBydMqtt(ClassLoader classLoader) {
+        int hooks = 0;
+        hooks += hookMqttSetup(classLoader, "com.byd.bydautolink.repository.mqtt.MqttUtil$g", "h");
+        hooks += hookMqttSetup(classLoader, "com.byd.bydautolink.repository.mqtt.MqttUtil", "z");
+        hooks += hookMqttPublish(classLoader, "com.byd.bydautolink.repository.mqtt.MqttUtil$g", "b");
+        return hooks;
+    }
+
+    private static int hookMqttSetup(ClassLoader classLoader, String className, String methodName) {
+        if (classLoader == null || className == null || methodName == null) {
+            return 0;
+        }
+        try {
+            Class<?> clazz = classLoader.loadClass(className);
+            return hookAllMethodsCompat(clazz, methodName, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    if (param == null || param.args == null) {
+                        return;
+                    }
+                    String broker = "";
+                    for (Object arg : param.args) {
+                        if (arg instanceof CharSequence) {
+                            broker = singleLine(arg.toString());
+                            break;
+                        }
+                    }
+                    if (broker.isEmpty()) {
+                        return;
+                    }
+                    logInfo("MQTT_SETUP class=" + className
+                            + " method=" + methodName
+                            + " broker=" + broker);
+                }
+            });
+        } catch (ClassNotFoundException ignored) {
+            return 0;
+        } catch (Throwable t) {
+            logError("MQTT setup hook failed " + className + "#" + methodName
+                    + " - " + Log.getStackTraceString(t));
+            return 0;
+        }
+    }
+
+    private static int hookMqttPublish(ClassLoader classLoader, String className, String methodName) {
+        if (classLoader == null || className == null || methodName == null) {
+            return 0;
+        }
+        try {
+            Class<?> clazz = classLoader.loadClass(className);
+            return hookAllMethodsCompat(clazz, methodName, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    if (param == null || param.args == null || param.args.length < 2) {
+                        return;
+                    }
+                    if (!(param.args[0] instanceof CharSequence)) {
+                        return;
+                    }
+                    String topic = singleLine(param.args[0].toString());
+                    if (topic.isEmpty()) {
+                        return;
+                    }
+
+                    String payloadText = mqttPayloadToText(param.args[1]);
+                    if (payloadText.isEmpty()) {
+                        return;
+                    }
+
+                    logInfo("MQTT_PUBLISH topic=" + topic
+                            + " payload=len=" + payloadText.length()
+                            + " text=" + payloadText);
+                }
+            });
+        } catch (ClassNotFoundException ignored) {
+            return 0;
+        } catch (Throwable t) {
+            logError("MQTT publish hook failed " + className + "#" + methodName
+                    + " - " + Log.getStackTraceString(t));
+            return 0;
+        }
+    }
+
+    private static String mqttPayloadToText(Object payload) {
+        if (payload == null) {
+            return "";
+        }
+        if (payload instanceof CharSequence) {
+            return singleLine(payload.toString());
+        }
+        if (payload instanceof byte[]) {
+            byte[] data = (byte[]) payload;
+            if (data.length == 0) {
+                return "";
+            }
+            if (isMostlyPrintable(data)) {
+                return singleLine(new String(data, StandardCharsets.UTF_8));
+            }
+            return toHex(data);
+        }
+        if (payload instanceof ByteBuffer) {
+            return mqttPayloadToText(copyBuffer((ByteBuffer) payload));
+        }
+        return singleLine(String.valueOf(payload));
     }
 
     private static int hookObfuscatedOkHttp(ClassLoader classLoader) {
@@ -2060,29 +1978,6 @@ public final class CryptoToolHook {
             } else {
                 Log.i(TAG, prefix + part);
             }
-        }
-    }
-
-    private static final class DigestCapture {
-        private static final int MAX_BYTES = 4096;
-        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-        private void append(byte[] data) {
-            if (data == null || data.length == 0) {
-                return;
-            }
-            int remaining = MAX_BYTES - buffer.size();
-            if (remaining <= 0) {
-                return;
-            }
-            int len = Math.min(remaining, data.length);
-            buffer.write(data, 0, len);
-        }
-
-        private byte[] consume() {
-            byte[] out = buffer.toByteArray();
-            buffer.reset();
-            return out;
         }
     }
 
