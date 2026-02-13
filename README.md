@@ -29,7 +29,7 @@ Run:
 node client.js
 ```
 
-The client performs login, fetches your vehicle list, polls real-time vehicle status, retrieves GPS info, and prints ready-to-use `mosquitto_sub` commands for MQTT. It also writes a self-contained dashboard to `status.html`.
+The client performs login, resolves the MQTT broker and prints ready-to-use `mosquitto_sub` commands, fetches your vehicle list, polls real-time vehicle status, and retrieves GPS info. It also writes a self-contained dashboard to `status.html`.
 
 ![Status dashboard screenshot](screenshot.png)
 
@@ -130,7 +130,7 @@ BYD uses an [EMQ](https://www.emqx.io/)-based MQTT broker to push real-time vehi
 |-----------|-------|
 | **Client ID** | `oversea_` + uppercase `MD5(IMEI)` (default IMEI MD5: all zeros) |
 | **Username** | `userId` from login response token |
-| **Password** | `<tsSeconds>` + `MD5(signToken + clientId + userId + tsSeconds)` |
+| **Password** | `<tsSeconds>` + uppercase `MD5(signToken + clientId + userId + tsSeconds)` |
 | **Topic** | `/oversea/res/<userId>` |
 
 All MQTT payloads use the same encryption as `encryData`/`respondData`: hex-encoded AES-128-CBC, zero IV, key = `MD5(encryToken)`.
@@ -191,7 +191,7 @@ Decode full hook flow:
 State behavior:
 - default file: `/tmp/byd_http_dec_state.json`
 - override: `BYD_DECODE_STATE_FILE` or `--state-file`
-- auto-learns `pwdLoginKey = MD5(MD5(signKey))` from login outer payload when present
+- auto-learns `MD5(signKey)` and `pwdLoginKey = MD5(MD5(signKey))` from login outer payload when present
 - auto-learns `contentKey = MD5(token.encryToken)` from decoded login `respondData`
 
 ### Bangcle Tables
