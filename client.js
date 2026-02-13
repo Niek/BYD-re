@@ -3,6 +3,7 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const readline = require('readline');
 const util = require('util');
 const { loadEnvFile } = require('node:process');
 const bangcle = require('./bangcle');
@@ -330,6 +331,21 @@ function buildListRequest(nowMs, session) {
   return buildTokenOuterEnvelope(nowMs, session, inner);
 }
 
+function buildVerifyControlPasswordRequest(nowMs, session, vin, commandPwd) {
+  const inner = {
+    commandPwd,
+    deviceType: CONFIG.deviceType,
+    functionType: 'remoteControl',
+    imeiMD5: CONFIG.imeiMd5,
+    networkType: CONFIG.networkType,
+    random: randomHex16(),
+    timeStamp: String(nowMs),
+    version: CONFIG.appInnerVersion,
+    vin,
+  };
+  return buildTokenOuterEnvelope(nowMs, session, inner);
+}
+
 function buildEmqBrokerRequest(nowMs, session) {
   const inner = {
     deviceType: CONFIG.deviceType,
@@ -366,6 +382,60 @@ function buildMqttPassword(session, clientId, tsSeconds) {
   const base = `${session.signToken}${clientId}${session.userId}${tsSeconds}`;
   const hash = md5Hex(base);
   return `${tsSeconds}${hash}`;
+}
+
+async function promptForSixDigitPin() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  function question(prompt) {
+    return new Promise((resolve) => rl.question(prompt, resolve));
+  }
+
+  try {
+    for (;;) {
+      const pin = String(await question('Enter 6-digit control PIN: ')).trim();
+      if (/^\d{6}$/.test(pin)) {
+        return pin;
+      }
+      console.error('PIN must be exactly 6 digits.');
+    }
+  } finally {
+    rl.close();
+  }
+}
+
+async function verifyControlPassword(session, vin, pin) {
+  const commandPwd = md5Hex(pin);
+  const req = buildVerifyControlPasswordRequest(Date.now(), session, vin, commandPwd);
+  const outer = await postSecure('/vehicle/vehicleswitch/verifyControlPassword', req.outer);
+
+  let respondData = {};
+  if (outer && typeof outer.respondData === 'string' && outer.respondData) {
+    try {
+      const plain = aesDecryptUtf8(outer.respondData, req.contentKey);
+      const trimmed = plain.trim();
+      if (!trimmed) {
+        respondData = {};
+      } else {
+        try {
+          respondData = JSON.parse(trimmed);
+        } catch {
+          respondData = trimmed;
+        }
+      }
+    } catch (err) {
+      respondData = { error: err.message };
+    }
+  }
+
+  return {
+    code: outer && outer.code != null ? String(outer.code) : '',
+    message: outer && outer.message != null ? String(outer.message) : '',
+    respondData,
+  };
 }
 
 function buildVehicleRealtimeEnvelope(nowMs, session, vin, requestSerial = null) {
@@ -1889,7 +1959,38 @@ function writeStatusHtml(output, filePath = 'status.html') {
   fs.writeFileSync(filePath, html, 'utf8');
 }
 
+function printUsage() {
+  const script = process.argv[1] || 'client.js';
+  console.log(`Usage: node ${script} [--verify-pin]
+
+Options:
+  --verify-pin   After login, prompt for 6-digit control PIN and call /vehicle/vehicleswitch/verifyControlPassword
+  -h, --help     Show this help
+`);
+}
+
 async function main() {
+  const parsed = util.parseArgs({
+    args: process.argv.slice(2),
+    options: {
+      help: {
+        type: 'boolean',
+        short: 'h',
+      },
+      'verify-pin': {
+        type: 'boolean',
+        default: false,
+      },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  if (parsed.values.help) {
+    printUsage();
+    return;
+  }
+  const verifyPin = Boolean(parsed.values['verify-pin']);
+
   if (!CONFIG.username || !CONFIG.password) {
     throw new Error('Set BYD_USERNAME and BYD_PASSWORD');
   }
@@ -1924,6 +2025,36 @@ async function main() {
   });
 
   const session = { userId, signToken, encryToken };
+
+  if (verifyPin) {
+    const pin = await promptForSixDigitPin();
+
+    let resolvedVin = CONFIG.vin;
+    if (!resolvedVin) {
+      const listReq = buildListRequest(Date.now(), session);
+      const listOuter = await postSecure('/app/account/getAllListByUserId', listReq.outer);
+      if (String(listOuter.code) !== '0') {
+        throw new Error(`Vehicle list failed: code=${listOuter.code} message=${listOuter.message || ''}`.trim());
+      }
+      const vehicles = decryptRespondDataJson(listOuter.respondData, listReq.contentKey);
+      resolvedVin = Array.isArray(vehicles) && vehicles.length && vehicles[0] && vehicles[0].vin
+        ? String(vehicles[0].vin)
+        : '';
+    }
+
+    if (!resolvedVin) {
+      throw new Error('Could not resolve VIN (set BYD_VIN or ensure vehicle list contains vin)');
+    }
+
+    const verifyResult = await verifyControlPassword(session, resolvedVin, pin);
+    console.log(util.inspect(JSON.parse(JSON.stringify(verifyResult)), {
+      depth: null,
+      colors: true,
+      maxArrayLength: null,
+      compact: false,
+    }));
+    return;
+  }
 
   const broker = await fetchEmqBroker(session);
   stepLog('Resolved MQTT broker', { broker });
