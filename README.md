@@ -2,7 +2,9 @@
 
 Reverse engineering of the BYD app HTTP crypto path used in the Android app.
 
-Base host: `https://dilinkappoversea-eu.byd.auto`
+Base hosts:
+- Overseas app (`com.byd.bydautolink`): `https://dilinkappoversea-eu.byd.auto`
+- CN app (`com.byd.aeri.caranywhere`): `https://dilinksuperappserver-cn.byd.auto`
 
 ## 🔗 Related Projects
 
@@ -14,7 +16,7 @@ Base host: `https://dilinkappoversea-eu.byd.auto`
 
 `client.js` is the main entrypoint. Prerequisite: Node.js 20+.
 
-> **Warning:** Do not commit real credentials, raw personal logs, or decrypted personal data. The `.env` file and `xposed/samples/raw_hooks.log` can contain plaintext identifiers and passwords.
+> **Warning:** Do not commit real credentials, raw personal logs, or decrypted personal data. `.env` and hook logs can contain plaintext identifiers and passwords.
 
 Create `.env`:
 
@@ -49,7 +51,7 @@ The client accepts many `BYD_*` environment variable overrides (`BYD_COUNTRY_COD
 
 ## 📱 App & Transport Snapshot
 
-- App: BYD overseas Android app (`com.byd.bydautolink`).
+- Apps: BYD overseas Android app (`com.byd.bydautolink`) and CN app: `com.byd.aeri.caranywhere`.
 - Hooking compatibility: `2.9.1` is the latest APK version that can be reliably hooked in this setup. Newer versions add Magisk/Zygote/LSPosed/root detection.
 - Hookable APK (`2.9.1`): [APKPure download](https://apkpure.com/byd/com.byd.bydautolink/download/2.9.1)
 - Client stack: Android + OkHttp (`user-agent: okhttp/4.12.0`).
@@ -69,7 +71,7 @@ Every BYD API call uses multiple crypto layers, described from outermost to inne
 
 Request body: `{"request":"<envelope>"}`. Response body: `{"response":"<envelope>"}`.
 
-### 2. Bangcle envelope (`bangcle.js`)
+### 2. Bangcle envelope (`bangcle.js`, overseas app)
 
 - Format: `F` + Base64 ciphertext.
 - Table-driven Bangcle white-box AES using embedded auth tables from `bangcle_auth_tables.js`.
@@ -104,23 +106,37 @@ Response-side decoded outer payload:
 
 For a full field-level description and mapping reference, see [`pyBYD/API_MAPPING.md`](https://github.com/jkaberg/pyBYD/blob/main/API_MAPPING.md).
 
+### 2b. CheckCode envelope (`com.byd.aeri.caranywhere`, CN app)
+
+Observed in CN captures:
+- Request wrapper is still `{"request":"<envelope>"}`.
+- Envelope text is Base64 without `F` prefix (captured envelope starts with `xo0K...`), produced by `CheckCodeUtil#checkcode`.
+- `checkcode`/`decheckcode` logs include `envelope version=... iv=... trailer=15`, indicating a framed format that differs from strict `F`-prefixed `bangcle.js` input.
+- `CheckCodeUtil#decheckcode` returns an outer object with fields like `identifier`, `code`, and hex `respondData`; a second AES-CBC decrypt (IV=0) then yields business JSON.
+- Some inner hex payloads (`encryData`/`respondData`) start with `F...`; this is not the same as the overseas outer `F`-prefixed envelope format.
+- In this CN HTTP path, no overseas-style Bangcle `F` envelope decode path is observed; traffic is handled by `CheckCodeUtil`.
+
 ### 3. Inner business payload (`encryData` / `respondData`)
 
 - Fields are uppercase hex AES-128-CBC (zero IV).
 - Config endpoints (e.g. `/app/config/getAllBrandCommonConfig`) use static `CONFIG_KEY`.
 - `/app/account/getAccountState` uses `MD5(identifier)`.
-- Login (`pwdLogin`) uses `MD5(MD5(signKey))` where `signKey` is the plaintext password sent in the outer payload.
+- CN password-login captures indicate the double-MD5 variant requires uppercasing the inner MD5 before the second MD5.
 - Remote control command password (`commandPwd`) uses uppercase `MD5(<operation PIN>)` (e.g. `123456` → `E10ADC3949BA59ABBE56E057F20F883E`), used by `/vehicle/vehicleswitch/verifyControlPassword` and `/control/remoteControl`.
+- Token field naming differs by app build:
+  - overseas app responses use `token.encryToken`
+  - CN responses can use `token.encryptToken`
 - Post-login payloads use token-derived keys from `respondData.token`:
-  - content key: `MD5(encryToken)` (for `encryData` / `respondData`)
-  - sign key: `MD5(signToken)` (for `sign`)
+  - content key: `MD5(contentToken)` for `encryData` / `respondData` (`contentToken` = `encryToken` or `encryptToken`)
+  - sign key: `MD5(signToken)` for `sign`
 
 ### 4. Signature and checkcode
 
-- Login sign key input is raw password; sign uses `sha1Mixed(buildSignString(..., md5(password)))`.
+- Password-login style flows use raw password-derived sign input (`sha1Mixed(buildSignString(..., md5(password)))`).
 - Post-login sign uses token-derived sign key.
-- `checkcode` is computed from `MD5(JSON.stringify(outerPayload))` with reordered chunks:
+- Overseas app `checkcode` is computed from `MD5(JSON.stringify(outerPayload))` with reordered chunks:
   `[24:32] + [8:16] + [16:24] + [0:8]`
+- CN app `checkcode` path uses SHA-256 (`CheckCodeUtil#get_obf_sha` → `getSHA256`) over the augmented request JSON before envelope encryption.
 
 ## 📡 MQTT Real-Time Vehicle Telemetry
 
@@ -133,7 +149,7 @@ BYD uses an [EMQ](https://www.emqx.io/)-based MQTT broker to push real-time vehi
 | **Password** | `<tsSeconds>` + uppercase `MD5(signToken + clientId + userId + tsSeconds)` |
 | **Topic** | `/oversea/res/<userId>` |
 
-All MQTT payloads use the same encryption as `encryData`/`respondData`: hex-encoded AES-128-CBC, zero IV, key = `MD5(encryToken)`.
+All MQTT payloads use the same encryption as `encryData`/`respondData`: hex-encoded AES-128-CBC, zero IV, key = `MD5(contentToken)` (`contentToken` is typically `token.encryToken` or `token.encryptToken`, depending on app build).
 
 `client.js` prints ready-to-use `mosquitto_sub` commands after login. Example:
 
@@ -142,7 +158,7 @@ mosquitto_sub -V mqttv5 \
   -L 'mqtts://<userId>:<password>@<broker>/oversea/res/<userId>' \
   -i 'oversea_<IMEI_MD5>' \
   -F '%p' \
-  | node ./mqtt_decode.js '<MD5(encryToken)>'
+  | node ./mqtt_decode.js '<MD5(contentToken)>'
 ```
 
 ## 🧪 Debugging / Offline Decode (`decompile.js`)
@@ -154,9 +170,11 @@ node decompile.js http-dec '<payload>'
 ```
 
 Accepted input:
-- raw Bangcle envelope ciphertext (`F` + Base64/Base64URL payload)
+- raw Bangcle envelope ciphertext (`F` + Base64/Base64URL payload, overseas format)
 - full JSON body such as `{"request":"..."}` or `{"response":"..."}`
 - raw inner hex ciphertext
+
+Note for CN app logs: request envelopes generated by `CheckCodeUtil#checkcode` are Base64 without `F` prefix, so `decompile.js http-dec` does not currently auto-decode those outer envelopes directly.
 
 Common options:
 
@@ -174,7 +192,7 @@ node decompile.js http-enc '{"k":"v"}' --identifier <id>
 Decode full hook flow:
 
 ```bash
-./xposed/http.sh xposed/samples/raw_hooks.log
+./xposed/http.sh /path/to/raw_hooks.log
 ```
 
 `xposed/http.sh` creates a temporary per-run decode-state file so keys learned from login are reused for later calls in the same flow.
@@ -191,8 +209,8 @@ Decode full hook flow:
 State behavior:
 - default file: `/tmp/byd_http_dec_state.json`
 - override: `BYD_DECODE_STATE_FILE` or `--state-file`
-- auto-learns `MD5(signKey)` and `pwdLoginKey = MD5(MD5(signKey))` from login outer payload when present
-- auto-learns `contentKey = MD5(token.encryToken)` from decoded login `respondData`
+- auto-learns `contentKey = MD5(token.encryToken)` from decoded login `respondData` (overseas app field name)
+- CN app login payloads can use `token.encryptToken`; current `decompile.js` state learning still expects `token.encryToken`
 
 ### Bangcle Tables
 

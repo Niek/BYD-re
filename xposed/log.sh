@@ -4,7 +4,8 @@
 
 set -euo pipefail
 
-APP_PACKAGE="com.byd.bydautolink"
+APP_PACKAGE="com.byd.bydautolink" # Overseas app
+#APP_PACKAGE="com.byd.aeri.caranywhere" # Chinese app
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_OUTPUT="${SCRIPT_DIR}/samples/raw_hooks.log"
