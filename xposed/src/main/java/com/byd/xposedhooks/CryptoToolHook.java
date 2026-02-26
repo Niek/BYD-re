@@ -594,11 +594,18 @@ public final class CryptoToolHook {
         }
     }
 
+    private static final String[] MQTT_PACKAGE_PREFIXES = {
+            "com.byd.bydautolink",
+            "com.byd.aeri.caranywhere"
+    };
+
     private static int hookBydMqtt(ClassLoader classLoader) {
         int hooks = 0;
-        hooks += hookMqttSetup(classLoader, "com.byd.bydautolink.repository.mqtt.MqttUtil$g", "h");
-        hooks += hookMqttSetup(classLoader, "com.byd.bydautolink.repository.mqtt.MqttUtil", "z");
-        hooks += hookMqttPublish(classLoader, "com.byd.bydautolink.repository.mqtt.MqttUtil$g", "b");
+        for (String prefix : MQTT_PACKAGE_PREFIXES) {
+            hooks += hookMqttSetup(classLoader, prefix + ".repository.mqtt.MqttUtil$g", "h");
+            hooks += hookMqttSetup(classLoader, prefix + ".repository.mqtt.MqttUtil", "z");
+            hooks += hookMqttPublish(classLoader, prefix + ".repository.mqtt.MqttUtil$g", "b");
+        }
         return hooks;
     }
 
